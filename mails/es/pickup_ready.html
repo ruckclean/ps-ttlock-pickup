@@ -16,7 +16,7 @@
         <div style="padding: 30px;">
             <p style="font-size: 16px; color: #333;">Hola <strong>{firstname}</strong>,</p>
             
-            <p style="font-size: 16px; color: #333;">Tu pedido <strong>#{order_reference}</strong> está listo para recoger en nuestra taquilla.</p>
+            <p style="font-size: 16px; color: #333;">Tu pedido <strong>#{order_reference}</strong> ya está preparado y te espera en nuestra zona de recogida.</p>
             
             <!-- PIN Box -->
             <div style="background: #1A1A1A; border-radius: 15px; padding: 25px; text-align: center; margin: 25px 0;">
@@ -25,39 +25,88 @@
                 <p style="color: #888; margin: 15px 0 0 0; font-size: 14px;">Taquilla: <strong style="color: white;">{locker_name}</strong></p>
             </div>
             
-            <!-- Validity -->
-            <div style="background: #FFF3CD; border-radius: 10px; padding: 15px; margin-bottom: 25px;">
+            <!-- Locker Photo -->
+            <div style="text-align: center; margin: 25px 0;">
+                <img src="https://ruckclean.com/img/landing/taquillas-recogida.jpg" 
+                     alt="Zona de taquillas Ruckclean" 
+                     style="max-width: 100%; border-radius: 10px; border: 3px solid #00D4AA;">
+                <p style="color: #888; font-size: 12px; margin-top: 8px;">Zona de recogida - Ruckclean</p>
+            </div>
+            
+            <!-- Instructions -->
+            <div style="background: #f8f9fa; border-radius: 10px; padding: 20px; margin: 25px 0;">
+                <p style="font-weight: bold; color: #1A1A1A; margin: 0 0 15px 0; font-size: 16px;">
+                    📋 Instrucciones de recogida:
+                </p>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; vertical-align: top; width: 40px;">
+                            <span style="background: #00D4AA; color: #1A1A1A; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold;">1</span>
+                        </td>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #555;">
+                            <strong>Dirígete a nuestra zona de recogida</strong><br>
+                            <span style="color: #888;">Encontrarás las taquillas junto a la entrada del lavadero.</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; vertical-align: top;">
+                            <span style="background: #00D4AA; color: #1A1A1A; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold;">2</span>
+                        </td>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #555;">
+                            <strong>Localiza tu taquilla: {locker_name}</strong><br>
+                            <span style="color: #888;">Cada taquilla está identificada con su nombre.</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; vertical-align: top;">
+                            <span style="background: #00D4AA; color: #1A1A1A; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold;">3</span>
+                        </td>
+                        <td style="padding: 10px 0; border-bottom: 1px solid #e0e0e0; color: #555;">
+                            <strong>Introduce tu código PIN en el teclado</strong><br>
+                            <span style="color: #888;">Pulsa los números <strong style="color: #00D4AA;">{pin_code}</strong> y confirma.</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; vertical-align: top;">
+                            <span style="background: #00D4AA; color: #1A1A1A; width: 28px; height: 28px; border-radius: 50%; display: inline-block; text-align: center; line-height: 28px; font-weight: bold;">4</span>
+                        </td>
+                        <td style="padding: 10px 0; color: #555;">
+                            <strong>¡Recoge tu pedido!</strong><br>
+                            <span style="color: #888;">La taquilla se abrirá automáticamente. No olvides cerrarla al terminar.</span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            
+            <!-- Validity Warning -->
+            <div style="background: #FFF3CD; border-radius: 10px; padding: 15px; margin-bottom: 25px; border-left: 4px solid #FFC107;">
                 <p style="margin: 0; color: #856404; font-size: 14px;">
-                    ⏰ <strong>Importante:</strong> Este código es válido durante <strong>{validity_hours} horas</strong>. 
-                    Por favor, recoge tu pedido antes de que expire.
+                    ⏰ <strong>Importante:</strong> Tu código es válido durante <strong>{validity_hours} horas</strong>. 
+                    Recoge tu pedido antes de que expire.
                 </p>
             </div>
             
             <!-- Location -->
-            <div style="background: #f8f9fa; border-radius: 10px; padding: 20px;">
-                <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">📍 Dirección de recogida:</p>
+            <div style="background: #E8F5E9; border-radius: 10px; padding: 20px; border-left: 4px solid #00D4AA;">
+                <p style="margin: 0 0 10px 0; font-weight: bold; color: #1A1A1A;">📍 Dirección:</p>
                 <p style="margin: 0; color: #555; font-size: 16px;">{pickup_address}</p>
-            </div>
-            
-            <!-- Instructions -->
-            <div style="margin-top: 25px;">
-                <p style="font-weight: bold; color: #333; margin-bottom: 10px;">Cómo recoger tu pedido:</p>
-                <ol style="color: #555; padding-left: 20px;">
-                    <li style="margin-bottom: 8px;">Ve a la dirección indicada</li>
-                    <li style="margin-bottom: 8px;">Busca la taquilla <strong>{locker_name}</strong></li>
-                    <li style="margin-bottom: 8px;">Introduce el código <strong>{pin_code}</strong> en el teclado</li>
-                    <li style="margin-bottom: 8px;">¡Recoge tu pedido!</li>
-                </ol>
+                <p style="margin: 10px 0 0 0;">
+                    <a href="https://maps.google.com/?q=Calle+Jazmin+6+Las+Rozas+Madrid" 
+                       style="color: #00D4AA; text-decoration: none; font-weight: bold;">
+                        🗺️ Ver en Google Maps
+                    </a>
+                </p>
             </div>
         </div>
         
         <!-- Footer -->
         <div style="background: #1A1A1A; padding: 20px; text-align: center;">
             <p style="color: #888; margin: 0; font-size: 12px;">
-                ¿Problemas con la recogida? Contacta con nosotros en info@ruckclean.com
+                ¿Problemas con la recogida? Contacta con nosotros en 
+                <a href="mailto:info@ruckclean.com" style="color: #00D4AA;">info@ruckclean.com</a>
             </p>
             <p style="color: #00D4AA; margin: 10px 0 0 0; font-size: 14px; font-weight: bold;">
-                Ruckclean - El mejor lavado de Las Rozas
+                Ruckclean - El mejor lavado de Las Rozas 🚗
             </p>
         </div>
     </div>

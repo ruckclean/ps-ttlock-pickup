@@ -1,27 +1,52 @@
 ¡Tu pedido está listo para recoger!
+=====================================
 
 Hola {firstname},
 
-Tu pedido #{order_reference} está listo para recoger en nuestra taquilla.
+Tu pedido #{order_reference} ya está preparado y te espera en nuestra zona de recogida.
 
-========================================
-TU CÓDIGO PIN: {pin_code}
-TAQUILLA: {locker_name}
-========================================
+╔═══════════════════════════════════════╗
+║         TU CÓDIGO PIN                 ║
+║                                       ║
+║           {pin_code}                  ║
+║                                       ║
+║     Taquilla: {locker_name}           ║
+╚═══════════════════════════════════════╝
 
-⏰ IMPORTANTE: Este código es válido durante {validity_hours} horas.
 
-📍 DIRECCIÓN DE RECOGIDA:
+📋 INSTRUCCIONES DE RECOGIDA
+-----------------------------
+
+1️⃣  DIRÍGETE A NUESTRA ZONA DE RECOGIDA
+    Encontrarás las taquillas junto a la entrada del lavadero.
+
+2️⃣  LOCALIZA TU TAQUILLA: {locker_name}
+    Cada taquilla está identificada con su nombre.
+
+3️⃣  INTRODUCE TU CÓDIGO PIN EN EL TECLADO
+    Pulsa los números {pin_code} y confirma.
+
+4️⃣  ¡RECOGE TU PEDIDO!
+    La taquilla se abrirá automáticamente. 
+    No olvides cerrarla al terminar.
+
+
+⏰ IMPORTANTE
+--------------
+Tu código es válido durante {validity_hours} horas.
+Recoge tu pedido antes de que expire.
+
+
+📍 DIRECCIÓN
+-------------
 {pickup_address}
 
-CÓMO RECOGER TU PEDIDO:
-1. Ve a la dirección indicada
-2. Busca la taquilla {locker_name}
-3. Introduce el código {pin_code} en el teclado
-4. ¡Recoge tu pedido!
+🗺️ Ver en Google Maps:
+https://maps.google.com/?q=Calle+Jazmin+6+Las+Rozas+Madrid
 
-¿Problemas con la recogida? 
+
+¿Problemas con la recogida?
 Contacta con nosotros en info@ruckclean.com
 
 --
-Ruckclean - El mejor lavado de Las Rozas
+Ruckclean - El mejor lavado de Las Rozas 🚗
