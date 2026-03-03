@@ -2,7 +2,7 @@
 <module>
     <name>rkpickup</name>
     <displayName><![CDATA[Ruckclean TTLock Pickup]]></displayName>
-    <version><![CDATA[1.0.0]]></version>
+    <version><![CDATA[1.1.0]]></version>
     <description><![CDATA[Sistema de recogida en taquillas con código PIN automático integrado con TTLock.]]></description>
     <author><![CDATA[Ruckclean]]></author>
     <tab><![CDATA[shipping_logistics]]></tab>
