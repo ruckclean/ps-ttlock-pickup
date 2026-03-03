@@ -19,7 +19,7 @@ class RkPickup extends Module
     {
         $this->name = 'rkpickup';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.1.0';
+        $this->version = '1.2.0';
         $this->author = 'Ruckclean';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = [
@@ -182,6 +182,16 @@ class RkPickup extends Module
             $output .= $this->displayConfirmation($this->l('Taquilla añadida'));
         }
 
+        if (Tools::getValue('releaseLocker') && Tools::getValue('id_locker')) {
+            $this->releaseLocker((int) Tools::getValue('id_locker'));
+            $output .= $this->displayConfirmation($this->l('Taquilla liberada'));
+        }
+
+        if (Tools::getValue('markCollected') && Tools::getValue('id_order')) {
+            $this->markOrderCollected((int) Tools::getValue('id_order'));
+            $output .= $this->displayConfirmation($this->l('Pedido marcado como recogido'));
+        }
+
         if (Tools::isSubmit('testConnection')) {
             $result = $this->testTTLockConnection();
             if ($result['success']) {
@@ -228,6 +238,51 @@ class RkPickup extends Module
                 'date_add' => date('Y-m-d H:i:s'),
                 'date_upd' => date('Y-m-d H:i:s'),
             ]);
+        }
+    }
+
+    /**
+     * Release a locker (cancel active assignment)
+     */
+    protected function releaseLocker($idLocker)
+    {
+        // Cancel active assignment
+        Db::getInstance()->update('rkpickup_assignment', [
+            'status' => 'cancelled',
+            'date_upd' => date('Y-m-d H:i:s'),
+        ], 'id_locker = ' . (int) $idLocker . ' AND status IN ("pending", "ready")');
+
+        // Mark locker as available
+        Db::getInstance()->update('rkpickup_locker', [
+            'status' => 'available',
+            'date_upd' => date('Y-m-d H:i:s'),
+        ], 'id_locker = ' . (int) $idLocker);
+    }
+
+    /**
+     * Mark order as collected
+     */
+    protected function markOrderCollected($idOrder)
+    {
+        // Get assignment
+        $assignment = Db::getInstance()->getRow('
+            SELECT * FROM ' . _DB_PREFIX_ . 'rkpickup_assignment 
+            WHERE id_order = ' . (int) $idOrder . ' AND status IN ("pending", "ready")
+        ');
+
+        if ($assignment) {
+            // Update assignment
+            Db::getInstance()->update('rkpickup_assignment', [
+                'status' => 'picked_up',
+                'picked_up_at' => date('Y-m-d H:i:s'),
+                'date_upd' => date('Y-m-d H:i:s'),
+            ], 'id_assignment = ' . (int) $assignment['id_assignment']);
+
+            // Release locker
+            Db::getInstance()->update('rkpickup_locker', [
+                'status' => 'available',
+                'date_upd' => date('Y-m-d H:i:s'),
+            ], 'id_locker = ' . (int) $assignment['id_locker']);
         }
     }
 
@@ -365,17 +420,87 @@ class RkPickup extends Module
 
     protected function renderLockersList()
     {
+        // Get lockers with current assignment info
         $lockers = Db::getInstance()->executeS('
             SELECT l.*, 
-                   (SELECT COUNT(*) FROM ' . _DB_PREFIX_ . 'rkpickup_assignment a 
-                    WHERE a.id_locker = l.id_locker AND a.status IN ("pending", "ready")) as active_assignments
+                   a.id_order as current_order_id,
+                   o.reference as current_order_ref,
+                   CONCAT(c.firstname, " ", c.lastname) as current_customer,
+                   a.pin_code as current_pin,
+                   a.valid_until as current_valid_until
             FROM ' . _DB_PREFIX_ . 'rkpickup_locker l
+            LEFT JOIN ' . _DB_PREFIX_ . 'rkpickup_assignment a 
+                ON l.id_locker = a.id_locker AND a.status IN ("pending", "ready")
+            LEFT JOIN ' . _DB_PREFIX_ . 'orders o ON a.id_order = o.id_order
+            LEFT JOIN ' . _DB_PREFIX_ . 'customer c ON o.id_customer = c.id_customer
+            WHERE l.active = 1
             ORDER BY l.name ASC
         ');
 
+        // Stats
+        $stats = [
+            'available' => 0,
+            'occupied' => 0,
+            'pending' => 0,
+            'picked_today' => 0,
+        ];
+        
+        foreach ($lockers as $locker) {
+            if ($locker['status'] == 'available') {
+                $stats['available']++;
+            } else {
+                $stats['occupied']++;
+            }
+        }
+        
+        $stats['pending'] = (int) Db::getInstance()->getValue('
+            SELECT COUNT(*) FROM ' . _DB_PREFIX_ . 'rkpickup_assignment 
+            WHERE status IN ("pending", "ready")
+        ');
+        
+        $stats['picked_today'] = (int) Db::getInstance()->getValue('
+            SELECT COUNT(*) FROM ' . _DB_PREFIX_ . 'rkpickup_assignment 
+            WHERE status = "picked_up" AND DATE(picked_up_at) = CURDATE()
+        ');
+
+        // Active assignments
+        $activeAssignments = Db::getInstance()->executeS('
+            SELECT a.*, 
+                   l.name as locker_name,
+                   o.reference as order_reference,
+                   CONCAT(c.firstname, " ", c.lastname) as customer_name
+            FROM ' . _DB_PREFIX_ . 'rkpickup_assignment a
+            JOIN ' . _DB_PREFIX_ . 'rkpickup_locker l ON a.id_locker = l.id_locker
+            JOIN ' . _DB_PREFIX_ . 'orders o ON a.id_order = o.id_order
+            JOIN ' . _DB_PREFIX_ . 'customer c ON o.id_customer = c.id_customer
+            WHERE a.status IN ("pending", "ready")
+            ORDER BY a.date_add DESC
+        ');
+
+        // Recent history
+        $recentHistory = Db::getInstance()->executeS('
+            SELECT a.*, 
+                   l.name as locker_name,
+                   o.reference as order_reference
+            FROM ' . _DB_PREFIX_ . 'rkpickup_assignment a
+            JOIN ' . _DB_PREFIX_ . 'rkpickup_locker l ON a.id_locker = l.id_locker
+            JOIN ' . _DB_PREFIX_ . 'orders o ON a.id_order = o.id_order
+            WHERE a.status IN ("picked_up", "expired", "cancelled")
+            ORDER BY a.date_upd DESC
+            LIMIT 10
+        ');
+
+        $baseUrl = AdminController::$currentIndex . '&configure=' . $this->name . '&token=' . Tools::getAdminTokenLite('AdminModules');
+
         $this->context->smarty->assign([
             'lockers' => $lockers,
-            'add_locker_url' => AdminController::$currentIndex . '&configure=' . $this->name . '&token=' . Tools::getAdminTokenLite('AdminModules'),
+            'stats' => $stats,
+            'active_assignments' => $activeAssignments,
+            'recent_history' => $recentHistory,
+            'add_locker_url' => $baseUrl,
+            'release_url' => $baseUrl . '&releaseLocker=1',
+            'collected_url' => $baseUrl . '&markCollected=1',
+            'order_link_base' => $this->context->link->getAdminLink('AdminOrders'),
         ]);
 
         return $this->display(__FILE__, 'views/templates/admin/lockers_list.tpl');
