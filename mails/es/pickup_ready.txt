@@ -1,0 +1,27 @@
+¡Tu pedido está listo para recoger!
+
+Hola {firstname},
+
+Tu pedido #{order_reference} está listo para recoger en nuestra taquilla.
+
+========================================
+TU CÓDIGO PIN: {pin_code}
+TAQUILLA: {locker_name}
+========================================
+
+⏰ IMPORTANTE: Este código es válido durante {validity_hours} horas.
+
+📍 DIRECCIÓN DE RECOGIDA:
+{pickup_address}
+
+CÓMO RECOGER TU PEDIDO:
+1. Ve a la dirección indicada
+2. Busca la taquilla {locker_name}
+3. Introduce el código {pin_code} en el teclado
+4. ¡Recoge tu pedido!
+
+¿Problemas con la recogida? 
+Contacta con nosotros en info@ruckclean.com
+
+--
+Ruckclean - El mejor lavado de Las Rozas
