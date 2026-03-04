@@ -19,7 +19,7 @@ class RkPickup extends Module
     {
         $this->name = 'rkpickup';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.2.0';
+        $this->version = '1.2.1';
         $this->author = 'Ruckclean';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = [
@@ -265,10 +265,8 @@ class RkPickup extends Module
     protected function markOrderCollected($idOrder)
     {
         // Get assignment
-        $assignment = Db::getInstance()->getRow('
-            SELECT * FROM ' . _DB_PREFIX_ . 'rkpickup_assignment 
-            WHERE id_order = ' . (int) $idOrder . ' AND status IN ("pending", "ready")
-        ');
+        $sql = 'SELECT * FROM `'._DB_PREFIX_.'rkpickup_assignment` WHERE id_order = '.(int)$idOrder.' AND status IN ("pending", "ready")';
+        $assignment = Db::getInstance()->getRow($sql);
 
         if ($assignment) {
             // Update assignment
@@ -421,21 +419,9 @@ class RkPickup extends Module
     protected function renderLockersList()
     {
         // Get lockers with current assignment info
-        $lockers = Db::getInstance()->executeS('
-            SELECT l.*, 
-                   a.id_order as current_order_id,
-                   o.reference as current_order_ref,
-                   CONCAT(c.firstname, " ", c.lastname) as current_customer,
-                   a.pin_code as current_pin,
-                   a.valid_until as current_valid_until
-            FROM ' . _DB_PREFIX_ . 'rkpickup_locker l
-            LEFT JOIN ' . _DB_PREFIX_ . 'rkpickup_assignment a 
-                ON l.id_locker = a.id_locker AND a.status IN ("pending", "ready")
-            LEFT JOIN ' . _DB_PREFIX_ . 'orders o ON a.id_order = o.id_order
-            LEFT JOIN ' . _DB_PREFIX_ . 'customer c ON o.id_customer = c.id_customer
-            WHERE l.active = 1
-            ORDER BY l.name ASC
-        ');
+        $prefix = _DB_PREFIX_;
+        $sql = "SELECT l.*, a.id_order as current_order_id, o.reference as current_order_ref, CONCAT(c.firstname, ' ', c.lastname) as current_customer, a.pin_code as current_pin, a.valid_until as current_valid_until FROM {$prefix}rkpickup_locker l LEFT JOIN {$prefix}rkpickup_assignment a ON l.id_locker = a.id_locker AND a.status IN ('pending', 'ready') LEFT JOIN {$prefix}orders o ON a.id_order = o.id_order LEFT JOIN {$prefix}customer c ON o.id_customer = c.id_customer WHERE l.active = 1 ORDER BY l.name ASC";
+        $lockers = Db::getInstance()->executeS($sql);
 
         // Stats
         $stats = [
@@ -453,42 +439,19 @@ class RkPickup extends Module
             }
         }
         
-        $stats['pending'] = (int) Db::getInstance()->getValue('
-            SELECT COUNT(*) FROM ' . _DB_PREFIX_ . 'rkpickup_assignment 
-            WHERE status IN ("pending", "ready")
-        ');
+        $sql = "SELECT COUNT(*) FROM {$prefix}rkpickup_assignment WHERE status IN ('pending', 'ready')";
+        $stats['pending'] = (int) Db::getInstance()->getValue($sql);
         
-        $stats['picked_today'] = (int) Db::getInstance()->getValue('
-            SELECT COUNT(*) FROM ' . _DB_PREFIX_ . 'rkpickup_assignment 
-            WHERE status = "picked_up" AND DATE(picked_up_at) = CURDATE()
-        ');
+        $sql = "SELECT COUNT(*) FROM {$prefix}rkpickup_assignment WHERE status = 'picked_up' AND DATE(picked_up_at) = CURDATE()";
+        $stats['picked_today'] = (int) Db::getInstance()->getValue($sql);
 
         // Active assignments
-        $activeAssignments = Db::getInstance()->executeS('
-            SELECT a.*, 
-                   l.name as locker_name,
-                   o.reference as order_reference,
-                   CONCAT(c.firstname, " ", c.lastname) as customer_name
-            FROM ' . _DB_PREFIX_ . 'rkpickup_assignment a
-            JOIN ' . _DB_PREFIX_ . 'rkpickup_locker l ON a.id_locker = l.id_locker
-            JOIN ' . _DB_PREFIX_ . 'orders o ON a.id_order = o.id_order
-            JOIN ' . _DB_PREFIX_ . 'customer c ON o.id_customer = c.id_customer
-            WHERE a.status IN ("pending", "ready")
-            ORDER BY a.date_add DESC
-        ');
+        $sql = "SELECT a.*, l.name as locker_name, o.reference as order_reference, CONCAT(c.firstname, ' ', c.lastname) as customer_name FROM {$prefix}rkpickup_assignment a JOIN {$prefix}rkpickup_locker l ON a.id_locker = l.id_locker JOIN {$prefix}orders o ON a.id_order = o.id_order JOIN {$prefix}customer c ON o.id_customer = c.id_customer WHERE a.status IN ('pending', 'ready') ORDER BY a.date_add DESC";
+        $activeAssignments = Db::getInstance()->executeS($sql);
 
         // Recent history
-        $recentHistory = Db::getInstance()->executeS('
-            SELECT a.*, 
-                   l.name as locker_name,
-                   o.reference as order_reference
-            FROM ' . _DB_PREFIX_ . 'rkpickup_assignment a
-            JOIN ' . _DB_PREFIX_ . 'rkpickup_locker l ON a.id_locker = l.id_locker
-            JOIN ' . _DB_PREFIX_ . 'orders o ON a.id_order = o.id_order
-            WHERE a.status IN ("picked_up", "expired", "cancelled")
-            ORDER BY a.date_upd DESC
-            LIMIT 10
-        ');
+        $sql = "SELECT a.*, l.name as locker_name, o.reference as order_reference FROM {$prefix}rkpickup_assignment a JOIN {$prefix}rkpickup_locker l ON a.id_locker = l.id_locker JOIN {$prefix}orders o ON a.id_order = o.id_order WHERE a.status IN ('picked_up', 'expired', 'cancelled') ORDER BY a.date_upd DESC LIMIT 10";
+        $recentHistory = Db::getInstance()->executeS($sql);
 
         $baseUrl = AdminController::$currentIndex . '&configure=' . $this->name . '&token=' . Tools::getAdminTokenLite('AdminModules');
 
@@ -548,13 +511,9 @@ class RkPickup extends Module
     {
         require_once dirname(__FILE__) . '/classes/TTLockAPI.php';
         
-        // Find available locker
-        $locker = Db::getInstance()->getRow('
-            SELECT * FROM ' . _DB_PREFIX_ . 'rkpickup_locker 
-            WHERE status = "available" AND active = 1
-            ORDER BY id_locker ASC
-            LIMIT 1
-        ');
+        // Find available locker (getRow adds LIMIT 1 automatically)
+        $sql = 'SELECT * FROM `'._DB_PREFIX_.'rkpickup_locker` WHERE `status` = "available" AND `active` = 1 ORDER BY `id_locker` ASC';
+        $locker = Db::getInstance()->getRow($sql);
 
         if (!$locker) {
             PrestaShopLogger::addLog('RkPickup: No hay taquillas disponibles', 2, null, 'Order', $order->id);
@@ -669,14 +628,8 @@ class RkPickup extends Module
     {
         $orderId = $params['id_order'];
         
-        $assignment = Db::getInstance()->getRow('
-            SELECT a.*, l.name as locker_name
-            FROM ' . _DB_PREFIX_ . 'rkpickup_assignment a
-            LEFT JOIN ' . _DB_PREFIX_ . 'rkpickup_locker l ON a.id_locker = l.id_locker
-            WHERE a.id_order = ' . (int) $orderId . '
-            ORDER BY a.id_assignment DESC
-            LIMIT 1
-        ');
+        $sql = 'SELECT a.*, l.name as locker_name FROM `'._DB_PREFIX_.'rkpickup_assignment` a LEFT JOIN `'._DB_PREFIX_.'rkpickup_locker` l ON a.id_locker = l.id_locker WHERE a.id_order = '.(int)$orderId.' ORDER BY a.id_assignment DESC';
+        $assignment = Db::getInstance()->getRow($sql);
 
         $this->context->smarty->assign([
             'assignment' => $assignment,
@@ -693,14 +646,8 @@ class RkPickup extends Module
     {
         $order = $params['order'];
         
-        $assignment = Db::getInstance()->getRow('
-            SELECT a.*, l.name as locker_name
-            FROM ' . _DB_PREFIX_ . 'rkpickup_assignment a
-            LEFT JOIN ' . _DB_PREFIX_ . 'rkpickup_locker l ON a.id_locker = l.id_locker
-            WHERE a.id_order = ' . (int) $order->id . '
-            ORDER BY a.id_assignment DESC
-            LIMIT 1
-        ');
+        $sql = 'SELECT a.*, l.name as locker_name FROM `'._DB_PREFIX_.'rkpickup_assignment` a LEFT JOIN `'._DB_PREFIX_.'rkpickup_locker` l ON a.id_locker = l.id_locker WHERE a.id_order = '.(int)$order->id.' ORDER BY a.id_assignment DESC';
+        $assignment = Db::getInstance()->getRow($sql);
 
         if (!$assignment) {
             return '';
