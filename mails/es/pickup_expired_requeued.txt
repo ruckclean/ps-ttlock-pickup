@@ -1,0 +1,22 @@
+⏰ TU RESERVA HA EXPIRADO - VUELVES A LA COLA
+
+Hola {firstname},
+
+Tu plazo de recogida de 72 horas ha expirado y había otros clientes esperando taquilla,
+por lo que hemos tenido que reasignar tu taquilla.
+
+PEDIDO: #{order_reference}
+ESTADO: 🔄 En cola de espera
+
+✅ TU PEDIDO NO HA SIDO CANCELADO
+Estás de nuevo en la cola de espera. En cuanto tengamos una taquilla disponible,
+te enviaremos un nuevo PIN por email.
+
+DIRECCIÓN DE RECOGIDA:
+{pickup_address}
+
+Sentimos las molestias. La próxima vez, recuerda recoger tu pedido dentro del plazo de 72 horas.
+
+---
+RuckClean - Tu llavero de coche siempre limpio
+https://ruckclean.com

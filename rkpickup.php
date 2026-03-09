@@ -1105,7 +1105,8 @@ class RkPickup extends Module
     }
 
     /**
-     * Expire assignment and reassign locker to waiting order
+     * Expire assignment and put order back in waiting queue
+     * The locker is then assigned to the next waiting order
      */
     protected function expireAndReassign($assignment)
     {
@@ -1124,14 +1125,18 @@ class RkPickup extends Module
             $api->deletePasscode($assignment['lock_id'], $assignment['ttlock_passcode_id']);
         }
 
-        // Mark assignment as expired
+        // Put assignment back in waiting queue (not cancelled - customer already paid!)
         Db::getInstance()->update('rkpickup_assignment', [
-            'status' => 'expired',
+            'status' => 'waiting',
+            'id_locker' => 0,
+            'pin_code' => '',
+            'ttlock_passcode_id' => '',
+            'warning_sent' => 0,
             'date_upd' => date('Y-m-d H:i:s'),
         ], 'id_assignment = ' . (int) $assignment['id_assignment']);
 
-        // Update order status
-        $this->updateOrderStatusFromAssignment($assignment['id_order'], 'expired');
+        // Update order status to waiting
+        $this->updateOrderStatusFromAssignment($assignment['id_order'], 'waiting');
 
         // Mark locker as available
         Db::getInstance()->update('rkpickup_locker', [
@@ -1139,14 +1144,14 @@ class RkPickup extends Module
             'date_upd' => date('Y-m-d H:i:s'),
         ], 'id_locker = ' . (int) $assignment['id_locker']);
 
-        // Send cancellation email
-        $this->sendExpiredCancelledEmail($assignment);
+        // Send requeued email (not cancelled!)
+        $this->sendExpiredRequeuedEmail($assignment);
 
-        // Process waiting queue for this locker
+        // Process waiting queue for this locker (will assign to oldest waiting, which might be someone else)
         $this->processWaitingQueue($assignment['id_locker']);
 
         PrestaShopLogger::addLog(
-            'RkPickup: Assignment expired and reassigned for order #' . $assignment['id_order'],
+            'RkPickup: Assignment expired, order #' . $assignment['id_order'] . ' back in waiting queue',
             1, null, 'Order', $assignment['id_order'], true
         );
     }
@@ -1210,9 +1215,9 @@ class RkPickup extends Module
     }
 
     /**
-     * Send expired cancelled email
+     * Send expired requeued email (order goes back to waiting queue)
      */
-    protected function sendExpiredCancelledEmail($assignment)
+    protected function sendExpiredRequeuedEmail($assignment)
     {
         $order = new Order($assignment['id_order']);
         $customer = new Customer($order->id_customer);
@@ -1221,12 +1226,13 @@ class RkPickup extends Module
             '{firstname}' => $customer->firstname,
             '{lastname}' => $customer->lastname,
             '{order_reference}' => $order->reference,
+            '{pickup_address}' => Configuration::get('RKPICKUP_PICKUP_ADDRESS'),
         ];
 
         Mail::Send(
             (int) $order->id_lang,
-            'pickup_expired_cancelled',
-            $this->l('Tu reserva de taquilla ha sido cancelada'),
+            'pickup_expired_requeued',
+            $this->l('Tu reserva de taquilla ha expirado - Vuelves a la cola'),
             $templateVars,
             $customer->email,
             $customer->firstname . ' ' . $customer->lastname,

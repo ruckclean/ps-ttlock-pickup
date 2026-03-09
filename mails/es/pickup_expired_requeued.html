@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Tu reserva ha expirado - Vuelves a la cola</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #f39c12, #e67e22); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">⏰ Tu reserva ha expirado</h1>
+    </div>
+    
+    <div style="background: #fff3cd; border: 1px solid #ffc107; padding: 20px; text-align: center;">
+        <p style="margin: 0; font-size: 16px; color: #856404;">
+            <strong>Tu pedido vuelve a la cola de espera</strong><br>
+            Te avisaremos cuando tengamos una taquilla disponible.
+        </p>
+    </div>
+    
+    <div style="padding: 30px; background: #f9f9f9;">
+        <p>Hola <strong>{firstname}</strong>,</p>
+        
+        <p>Tu plazo de recogida de 72 horas ha expirado y había otros clientes esperando taquilla, 
+        por lo que hemos tenido que reasignar tu taquilla.</p>
+        
+        <div style="background: white; border: 2px solid #f39c12; border-radius: 10px; padding: 25px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Pedido</p>
+            <p style="margin: 0 0 15px 0; font-size: 24px; font-weight: bold; color: #333;">#{order_reference}</p>
+            <p style="margin: 0; color: #f39c12;">
+                <strong>🔄 Estado: En cola de espera</strong>
+            </p>
+        </div>
+
+        <div style="background: #d4edda; border: 1px solid #28a745; border-radius: 10px; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px; color: #155724;">
+                <strong>✅ Tu pedido NO ha sido cancelado</strong><br>
+                Estás de nuevo en la cola de espera. En cuanto tengamos una taquilla disponible, 
+                te enviaremos un nuevo PIN por email.
+            </p>
+        </div>
+
+        <div style="background: white; border-radius: 10px; padding: 20px; margin: 20px 0;">
+            <h3 style="margin: 0 0 10px 0; color: #333;">📍 Dirección de recogida</h3>
+            <p style="margin: 0; color: #666;">{pickup_address}</p>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Sentimos las molestias. La próxima vez, recuerda recoger tu pedido dentro del plazo de 72 horas.
+        </p>
+    </div>
+    
+    <div style="background: #1A1A1A; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+        <p style="margin: 0; font-size: 12px;">
+            RuckClean - Tu llavero de coche siempre limpio<br>
+            <a href="https://ruckclean.com" style="color: #00D4AA;">ruckclean.com</a>
+        </p>
+    </div>
+</body>
+</html>
