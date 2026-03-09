@@ -1,0 +1,22 @@
+⏰ TU PLAZO HA EXPIRADO
+
+✅ ¡BUENAS NOTICIAS! Tu PIN sigue activo y puedes recoger tu pedido.
+
+Hola {firstname},
+
+Tu plazo de recogida ha expirado, pero como no hay otros clientes esperando taquilla,
+tu PIN sigue funcionando y puedes recoger tu pedido cuando quieras.
+
+PEDIDO: #{order_reference}
+TAQUILLA: {locker_name}
+TU PIN (sigue activo): {pin_code}
+
+DIRECCIÓN DE RECOGIDA:
+{pickup_address}
+
+⚠️ AVISO: Si otro cliente hace un pedido y no hay taquillas disponibles,
+tu reserva podría cancelarse. Te recomendamos recoger lo antes posible.
+
+---
+RuckClean - Tu llavero de coche siempre limpio
+https://ruckclean.com

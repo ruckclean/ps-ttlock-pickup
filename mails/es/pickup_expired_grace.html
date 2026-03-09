@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Plazo expirado - Aún puedes recoger</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #f39c12, #e67e22); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">⏰ Tu plazo ha expirado</h1>
+    </div>
+    
+    <div style="background: #d4edda; border: 1px solid #28a745; padding: 20px; text-align: center;">
+        <p style="margin: 0; font-size: 18px; color: #155724;">
+            <strong>✅ ¡Buenas noticias!</strong> Tu PIN sigue activo y puedes recoger tu pedido.
+        </p>
+    </div>
+    
+    <div style="padding: 30px; background: #f9f9f9;">
+        <p>Hola <strong>{firstname}</strong>,</p>
+        
+        <p>Tu plazo de recogida ha expirado, pero como no hay otros clientes esperando taquilla, 
+        <strong>tu PIN sigue funcionando</strong> y puedes recoger tu pedido cuando quieras.</p>
+        
+        <div style="background: white; border: 2px solid #28a745; border-radius: 10px; padding: 25px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0 0 5px 0; font-size: 14px; color: #666;">Pedido</p>
+            <p style="margin: 0 0 15px 0; font-size: 24px; font-weight: bold; color: #333;">#{order_reference}</p>
+            
+            <p style="margin: 0 0 5px 0; font-size: 14px; color: #666;">Tu código PIN (sigue activo)</p>
+            <div style="background: #1A1A1A; color: #00D4AA; font-size: 32px; font-weight: bold; letter-spacing: 8px; padding: 15px; border-radius: 8px; font-family: monospace;">
+                {pin_code}
+            </div>
+            
+            <p style="margin: 15px 0 5px 0; font-size: 14px; color: #666;">Taquilla</p>
+            <p style="margin: 0; font-size: 18px; font-weight: bold;">{locker_name}</p>
+        </div>
+
+        <div style="background: #fff3cd; border-radius: 10px; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 14px; color: #856404;">
+                <strong>⚠️ Aviso:</strong> Si otro cliente hace un pedido y no hay taquillas disponibles, 
+                tu reserva podría cancelarse. Te recomendamos recoger lo antes posible.
+            </p>
+        </div>
+        
+        <div style="background: white; border-radius: 10px; padding: 20px; margin: 20px 0;">
+            <h3 style="margin: 0 0 10px 0; color: #333;">📍 Dirección de recogida</h3>
+            <p style="margin: 0; color: #666;">{pickup_address}</p>
+        </div>
+    </div>
+    
+    <div style="background: #1A1A1A; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+        <p style="margin: 0; font-size: 12px;">
+            RuckClean - Tu llavero de coche siempre limpio<br>
+            <a href="https://ruckclean.com" style="color: #00D4AA;">ruckclean.com</a>
+        </p>
+    </div>
+</body>
+</html>

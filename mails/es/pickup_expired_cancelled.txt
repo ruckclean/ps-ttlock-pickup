@@ -1,0 +1,25 @@
+❌ RESERVA DE TAQUILLA CANCELADA
+
+Hola {firstname},
+
+Lamentamos informarte que tu reserva de taquilla para el pedido #{order_reference}
+ha sido cancelada porque:
+
+- Tu plazo de recogida de 72 horas expiró
+- Había otros clientes esperando taquilla
+
+⚠️ TU PIN YA NO ES VÁLIDO
+
+¿QUÉ PUEDO HACER?
+Por favor, contacta con nosotros para coordinar la entrega de tu pedido:
+
+📧 Email: hola@ruckclean.com
+📱 WhatsApp: +34 600 00 00 00
+
+Podemos reenviarte el pedido, coordinar una nueva recogida, o tramitar un reembolso.
+
+Sentimos las molestias. Intentamos avisar antes de que expirara el plazo.
+
+---
+RuckClean - Tu llavero de coche siempre limpio
+https://ruckclean.com

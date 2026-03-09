@@ -1,0 +1,21 @@
+⏰ AVISO: TU PLAZO EXPIRA PRONTO
+
+Hola {firstname},
+
+Te recordamos que tienes un pedido pendiente de recoger y tu plazo está a punto de terminar.
+
+PEDIDO: #{order_reference}
+TAQUILLA: {locker_name}
+TU PIN: {pin_code}
+⚠️ EXPIRA: {valid_until}
+
+DIRECCIÓN DE RECOGIDA:
+{pickup_address}
+
+¿QUÉ PASA SI NO RECOJO A TIEMPO?
+Si hay otros clientes esperando taquilla, tu reserva se cancelará automáticamente.
+Si no hay cola de espera, podrás recoger igualmente pero recibirás un aviso.
+
+---
+RuckClean - Tu llavero de coche siempre limpio
+https://ruckclean.com

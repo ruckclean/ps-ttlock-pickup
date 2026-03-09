@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Tu pedido está en cola de espera</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f5f5f5; margin: 0; padding: 20px;">
+    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); padding: 30px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 24px;">⏳ Pedido en cola de espera</h1>
+        </div>
+        
+        <!-- Content -->
+        <div style="padding: 30px;">
+            <p style="font-size: 16px; color: #333;">Hola <strong>{firstname}</strong>,</p>
+            
+            <p style="font-size: 16px; color: #333;">Gracias por tu pedido <strong>#{order_reference}</strong>.</p>
+            
+            <div style="background: #FFF3CD; border-radius: 10px; padding: 20px; margin: 25px 0; border-left: 4px solid #FFC107;">
+                <p style="margin: 0; color: #856404; font-size: 15px;">
+                    <strong>⚠️ Actualmente todas nuestras taquillas de recogida están ocupadas.</strong>
+                </p>
+                <p style="margin: 15px 0 0 0; color: #856404; font-size: 14px;">
+                    No te preocupes, tu pedido está en cola y <strong>te avisaremos por email</strong> en cuanto tengamos una taquilla disponible con tu código PIN para recogerlo.
+                </p>
+            </div>
+            
+            <div style="background: #E8F5E9; border-radius: 10px; padding: 20px; margin: 25px 0; border-left: 4px solid #4CAF50;">
+                <p style="margin: 0; color: #2E7D32; font-size: 14px;">
+                    <strong>📍 Ubicación de recogida:</strong><br>
+                    {pickup_address}
+                </p>
+            </div>
+            
+            <p style="font-size: 14px; color: #666;">
+                Disculpa las molestias. Si tienes prisa o prefieres otra opción de entrega, no dudes en contactarnos y buscaremos una solución.
+            </p>
+            
+            <p style="margin-top: 30px; font-size: 16px; color: #333;">
+                Un saludo,<br>
+                <strong>El equipo de Ruckclean</strong>
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div style="background: #1A1A1A; padding: 20px; text-align: center;">
+            <p style="color: #888; margin: 0; font-size: 12px;">
+                ¿Preguntas? Escríbenos a 
+                <a href="mailto:info@ruckclean.com" style="color: #00D4AA;">info@ruckclean.com</a>
+            </p>
+            <p style="color: #00D4AA; margin: 10px 0 0 0; font-size: 14px; font-weight: bold;">
+                Ruckclean - El mejor lavado de Las Rozas 🚗
+            </p>
+        </div>
+    </div>
+</body>
+</html>

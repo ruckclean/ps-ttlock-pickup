@@ -19,7 +19,7 @@ class RkPickup extends Module
     {
         $this->name = 'rkpickup';
         $this->tab = 'shipping_logistics';
-        $this->version = '1.2.1';
+        $this->version = '1.3.0';
         $this->author = 'Ruckclean';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = [
@@ -39,17 +39,53 @@ class RkPickup extends Module
     {
         return parent::install()
             && $this->registerHook('actionValidateOrder')
+            && $this->registerHook('actionOrderStatusPostUpdate')
             && $this->registerHook('displayAdminOrderMain')
             && $this->registerHook('displayOrderConfirmation')
+            && $this->registerHook('actionEmailSendBefore')
             && $this->installDb()
-            && $this->installConfig();
+            && $this->installConfig()
+            && $this->installTab();
     }
 
     public function uninstall()
     {
         return parent::uninstall()
             && $this->uninstallDb()
-            && $this->uninstallConfig();
+            && $this->uninstallConfig()
+            && $this->uninstallTab();
+    }
+
+    /**
+     * Install admin tab under Orders menu
+     */
+    protected function installTab()
+    {
+        $tab = new Tab();
+        $tab->active = 1;
+        $tab->class_name = 'AdminRkPickupDashboard';
+        $tab->module = $this->name;
+        $tab->id_parent = (int) Tab::getIdFromClassName('AdminParentOrders');
+        $tab->icon = 'lock';
+        
+        foreach (Language::getLanguages(true) as $lang) {
+            $tab->name[$lang['id_lang']] = 'Taquillas de Recogida';
+        }
+        
+        return $tab->add();
+    }
+
+    /**
+     * Uninstall admin tab
+     */
+    protected function uninstallTab()
+    {
+        $idTab = (int) Tab::getIdFromClassName('AdminRkPickupDashboard');
+        if ($idTab) {
+            $tab = new Tab($idTab);
+            return $tab->delete();
+        }
+        return true;
     }
 
     /**
@@ -65,7 +101,7 @@ class RkPickup extends Module
             `lock_id` VARCHAR(64) NOT NULL,
             `name` VARCHAR(128) NOT NULL,
             `description` VARCHAR(255) DEFAULT NULL,
-            `status` ENUM("available", "occupied", "maintenance") DEFAULT "available",
+            `status` ENUM("available", "assigned", "occupied", "pending_refill", "maintenance") DEFAULT "available",
             `active` TINYINT(1) UNSIGNED DEFAULT 1,
             `date_add` DATETIME NOT NULL,
             `date_upd` DATETIME NOT NULL,
@@ -81,9 +117,10 @@ class RkPickup extends Module
             `id_locker` INT(11) UNSIGNED NOT NULL,
             `pin_code` VARCHAR(16) NOT NULL,
             `ttlock_passcode_id` VARCHAR(64) DEFAULT NULL,
-            `status` ENUM("pending", "ready", "picked_up", "expired", "cancelled") DEFAULT "pending",
+            `status` ENUM("pending", "ready", "waiting", "expired_grace", "picked_up", "expired", "cancelled") DEFAULT "pending",
             `valid_from` DATETIME NOT NULL,
             `valid_until` DATETIME NOT NULL,
+            `warning_sent` TINYINT(1) UNSIGNED DEFAULT 0,
             `picked_up_at` DATETIME DEFAULT NULL,
             `date_add` DATETIME NOT NULL,
             `date_upd` DATETIME NOT NULL,
@@ -133,13 +170,60 @@ class RkPickup extends Module
             'RKPICKUP_AUTO_ASSIGN' => '1',
             'RKPICKUP_SEND_EMAIL' => '1',
             'RKPICKUP_PICKUP_ADDRESS' => 'Calle Jazmín, 6 - Las Rozas de Madrid',
+            'RKPICKUP_CRON_TOKEN' => bin2hex(random_bytes(16)),
         ];
 
         foreach ($defaults as $key => $value) {
             Configuration::updateValue($key, $value);
         }
 
+        // Create custom order statuses
+        $this->createOrderStatuses();
+
         return true;
+    }
+
+    /**
+     * Create custom order statuses for pickup workflow
+     */
+    protected function createOrderStatuses()
+    {
+        $statuses = [
+            'RKPICKUP_OS_WAITING' => ['name' => 'Esperando taquilla', 'color' => '#E74C3C', 'send_email' => false],
+            'RKPICKUP_OS_READY' => ['name' => 'Listo para recoger', 'color' => '#00D4AA', 'send_email' => false],
+            'RKPICKUP_OS_EXPIRED_GRACE' => ['name' => 'Plazo expirado (gracia)', 'color' => '#F39C12', 'send_email' => false],
+            'RKPICKUP_OS_EXPIRED' => ['name' => 'Reserva cancelada', 'color' => '#C0392B', 'send_email' => false],
+            'RKPICKUP_OS_PICKED_UP' => ['name' => 'Recogido', 'color' => '#27AE60', 'send_email' => false],
+        ];
+
+        foreach ($statuses as $configKey => $data) {
+            // Check if already exists
+            $existingId = Configuration::get($configKey);
+            if ($existingId) {
+                continue;
+            }
+
+            $orderState = new OrderState();
+            $orderState->color = $data['color'];
+            $orderState->send_email = $data['send_email'];
+            $orderState->module_name = $this->name;
+            $orderState->unremovable = false;
+            $orderState->hidden = false;
+            $orderState->logable = true;
+            $orderState->delivery = false;
+            $orderState->shipped = false;
+            $orderState->paid = true;
+            $orderState->pdf_invoice = false;
+            $orderState->pdf_delivery = false;
+
+            foreach (Language::getLanguages(true) as $lang) {
+                $orderState->name[$lang['id_lang']] = $data['name'];
+            }
+
+            if ($orderState->add()) {
+                Configuration::updateValue($configKey, $orderState->id);
+            }
+        }
     }
 
     protected function uninstallConfig()
@@ -156,6 +240,12 @@ class RkPickup extends Module
             'RKPICKUP_AUTO_ASSIGN',
             'RKPICKUP_SEND_EMAIL',
             'RKPICKUP_PICKUP_ADDRESS',
+            'RKPICKUP_CRON_TOKEN',
+            'RKPICKUP_OS_WAITING',
+            'RKPICKUP_OS_READY',
+            'RKPICKUP_OS_EXPIRED_GRACE',
+            'RKPICKUP_OS_EXPIRED',
+            'RKPICKUP_OS_PICKED_UP',
         ];
 
         foreach ($keys as $key) {
@@ -314,6 +404,7 @@ class RkPickup extends Module
                 'tabs' => [
                     'api' => $this->l('API TTLock'),
                     'settings' => $this->l('Ajustes'),
+                    'cron' => $this->l('Cron / Expiración'),
                 ],
                 'input' => [
                     // API TAB
@@ -339,11 +430,11 @@ class RkPickup extends Module
                         'desc' => $this->l('Email de tu cuenta TTLock'),
                     ],
                     [
-                        'type' => 'password',
+                        'type' => 'text',
                         'label' => $this->l('Contraseña TTLock'),
                         'name' => 'RKPICKUP_TTLOCK_PASSWORD',
                         'tab' => 'api',
-                        'desc' => $this->l('Contraseña de tu cuenta TTLock (se guarda cifrada)'),
+                        'desc' => $this->l('Contraseña de tu cuenta TTLock'),
                     ],
                     // SETTINGS TAB
                     [
@@ -385,6 +476,13 @@ class RkPickup extends Module
                         'tab' => 'settings',
                         'desc' => $this->l('Dirección que se mostrará en el email'),
                     ],
+                    // CRON TAB
+                    [
+                        'type' => 'html',
+                        'name' => 'cron_info',
+                        'tab' => 'cron',
+                        'html_content' => $this->getCronInfoHtml(),
+                    ],
                 ],
                 'buttons' => [
                     [
@@ -414,6 +512,82 @@ class RkPickup extends Module
             'RKPICKUP_SEND_EMAIL' => Configuration::get('RKPICKUP_SEND_EMAIL'),
             'RKPICKUP_PICKUP_ADDRESS' => Configuration::get('RKPICKUP_PICKUP_ADDRESS'),
         ];
+    }
+
+    /**
+     * Generate HTML for cron configuration tab
+     */
+    protected function getCronInfoHtml()
+    {
+        $token = Configuration::get('RKPICKUP_CRON_TOKEN');
+        if (!$token) {
+            $token = bin2hex(random_bytes(16));
+            Configuration::updateValue('RKPICKUP_CRON_TOKEN', $token);
+        }
+        
+        $cronUrl = $this->context->link->getModuleLink('rkpickup', 'cron', ['token' => $token], true);
+        
+        $html = '
+        <div class="panel">
+            <div class="panel-heading"><i class="icon-clock-o"></i> Configuración del Cron</div>
+            <div class="panel-body">
+                <div class="alert alert-info">
+                    <p><strong>¿Qué hace el cron?</strong></p>
+                    <ul>
+                        <li>Envía avisos de expiración 24h antes de que expire el PIN</li>
+                        <li>Procesa reservas expiradas (cancela o pone en gracia según cola de espera)</li>
+                        <li>Recomendado: ejecutar cada hora</li>
+                    </ul>
+                </div>
+                
+                <div class="form-group">
+                    <label>URL del Cron (secreta)</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" readonly value="' . htmlspecialchars($cronUrl) . '" id="cron_url">
+                        <span class="input-group-btn">
+                            <button class="btn btn-default" type="button" onclick="navigator.clipboard.writeText(document.getElementById(\'cron_url\').value); alert(\'URL copiada!\');">
+                                <i class="icon-copy"></i> Copiar
+                            </button>
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Token de seguridad</label>
+                    <input type="text" class="form-control" readonly value="' . htmlspecialchars($token) . '">
+                    <p class="help-block">Este token protege el cron. No lo compartas.</p>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <p><strong>Comando crontab sugerido (ejecutar cada hora):</strong></p>
+                    <code>0 * * * * curl -s "' . htmlspecialchars($cronUrl) . '" > /dev/null 2>&1</code>
+                </div>
+
+                <hr>
+                <h4>Flujo de Expiración</h4>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr><th>Situación</th><th>Acción</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>PIN expira en 24h</td>
+                            <td><span class="label label-warning">Email de aviso</span></td>
+                        </tr>
+                        <tr>
+                            <td>PIN expirado + NO hay cola</td>
+                            <td><span class="label label-info">Gracia: PIN sigue activo</span> + email aviso</td>
+                        </tr>
+                        <tr>
+                            <td>PIN expirado + SÍ hay cola</td>
+                            <td><span class="label label-danger">PIN cancelado</span> → asigna al siguiente</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>';
+        
+        return $html;
     }
 
     protected function renderLockersList()
@@ -498,10 +672,66 @@ class RkPickup extends Module
 
         $order = $params['order'];
         
-        // Check if this is a pickup order (you might want to add logic here)
-        // For now, assign to all orders
+        // Don't assign locker for bank transfer - wait for payment confirmation
+        $paymentModule = $order->module;
+        $offlinePayments = ['ps_wirepayment', 'bankwire', 'cheque', 'ps_checkpayment'];
         
+        if (in_array($paymentModule, $offlinePayments)) {
+            PrestaShopLogger::addLog(
+                'RkPickup: Pedido por transferencia, esperando confirmación de pago',
+                1, null, 'Order', $order->id
+            );
+            return; // Don't assign yet
+        }
+        
+        // For online payments (Redsys, PayPal, etc.), assign immediately
         $this->assignLockerToOrder($order);
+    }
+
+    /**
+     * Hook: When order status changes
+     * Assign locker when payment is confirmed for offline payments
+     */
+    public function hookActionOrderStatusPostUpdate($params)
+    {
+        if (!Configuration::get('RKPICKUP_AUTO_ASSIGN')) {
+            return;
+        }
+
+        $newOrderStatus = $params['newOrderStatus'];
+        $orderId = $params['id_order'];
+        
+        // Payment accepted status (typically id 2 in PrestaShop)
+        $paidStatuses = [2, 12]; // 2 = Payment accepted, 12 = Payment accepted remotely
+        
+        if (!in_array($newOrderStatus->id, $paidStatuses)) {
+            return; // Not a payment confirmation
+        }
+
+        $order = new Order($orderId);
+        if (!Validate::isLoadedObject($order)) {
+            return;
+        }
+
+        // Check if this order already has an assignment
+        $existingAssignment = Db::getInstance()->getValue(
+            'SELECT id_assignment FROM `'._DB_PREFIX_.'rkpickup_assignment` WHERE id_order = '.(int)$orderId
+        );
+
+        if ($existingAssignment) {
+            return; // Already has assignment
+        }
+
+        // Check if it was an offline payment
+        $offlinePayments = ['ps_wirepayment', 'bankwire', 'cheque', 'ps_checkpayment'];
+        
+        if (in_array($order->module, $offlinePayments)) {
+            PrestaShopLogger::addLog(
+                'RkPickup: Pago confirmado, asignando taquilla',
+                1, null, 'Order', $order->id
+            );
+            $this->assignLockerToOrder($order);
+        }
     }
 
     /**
@@ -516,8 +746,9 @@ class RkPickup extends Module
         $locker = Db::getInstance()->getRow($sql);
 
         if (!$locker) {
-            PrestaShopLogger::addLog('RkPickup: No hay taquillas disponibles', 2, null, 'Order', $order->id);
-            return false;
+            // No lockers available - put order in waiting queue
+            PrestaShopLogger::addLog('RkPickup: No hay taquillas disponibles, pedido en cola de espera', 2, null, 'Order', $order->id);
+            return $this->addToWaitingQueue($order);
         }
 
         // Generate PIN via TTLock API
@@ -572,6 +803,9 @@ class RkPickup extends Module
             'date_upd' => date('Y-m-d H:i:s'),
         ], 'id_locker = ' . (int) $locker['id_locker']);
 
+        // Update order status to ready
+        $this->updateOrderStatusFromAssignment($order->id, 'ready');
+
         // Send email to customer
         if (Configuration::get('RKPICKUP_SEND_EMAIL')) {
             $this->sendPickupEmail($order, $locker, $passcodeResult['passcode']);
@@ -580,6 +814,167 @@ class RkPickup extends Module
         PrestaShopLogger::addLog(
             'RkPickup: Taquilla ' . $locker['name'] . ' asignada con PIN ' . $passcodeResult['passcode'],
             1, null, 'Order', $order->id
+        );
+
+        return true;
+    }
+
+    /**
+     * Add order to waiting queue when no lockers available
+     */
+    protected function addToWaitingQueue($order)
+    {
+        // Create waiting assignment (no locker assigned yet)
+        Db::getInstance()->insert('rkpickup_assignment', [
+            'id_order' => (int) $order->id,
+            'id_locker' => 0, // No locker yet
+            'pin_code' => '',
+            'ttlock_passcode_id' => '',
+            'status' => 'waiting',
+            'valid_from' => date('Y-m-d H:i:s'),
+            'valid_until' => date('Y-m-d H:i:s'),
+            'date_add' => date('Y-m-d H:i:s'),
+            'date_upd' => date('Y-m-d H:i:s'),
+        ]);
+
+        // Update order status to waiting
+        $this->updateOrderStatusFromAssignment($order->id, 'waiting');
+
+        // Send waiting email to customer
+        if (Configuration::get('RKPICKUP_SEND_EMAIL')) {
+            $this->sendWaitingEmail($order);
+        }
+
+        PrestaShopLogger::addLog(
+            'RkPickup: Pedido añadido a cola de espera',
+            1, null, 'Order', $order->id
+        );
+
+        return true;
+    }
+
+    /**
+     * Send waiting queue email
+     */
+    protected function sendWaitingEmail($order)
+    {
+        $customer = new Customer($order->id_customer);
+        $pickupAddress = Configuration::get('RKPICKUP_PICKUP_ADDRESS');
+
+        $templateVars = [
+            '{firstname}' => $customer->firstname,
+            '{lastname}' => $customer->lastname,
+            '{order_reference}' => $order->reference,
+            '{pickup_address}' => $pickupAddress,
+        ];
+
+        Mail::Send(
+            (int) $order->id_lang,
+            'pickup_waiting',
+            $this->l('Tu pedido está en cola de espera'),
+            $templateVars,
+            $customer->email,
+            $customer->firstname . ' ' . $customer->lastname,
+            null,
+            null,
+            null,
+            null,
+            dirname(__FILE__) . '/mails/',
+            false,
+            (int) $order->id_shop
+        );
+    }
+
+    /**
+     * Process waiting queue - assign oldest waiting order to available locker
+     * Called when a locker becomes available
+     */
+    public function processWaitingQueue($idLocker = null)
+    {
+        require_once dirname(__FILE__) . '/classes/TTLockAPI.php';
+        
+        // Find oldest waiting order
+        $sql = 'SELECT a.*, o.id_lang, o.id_shop FROM `'._DB_PREFIX_.'rkpickup_assignment` a JOIN `'._DB_PREFIX_.'orders` o ON a.id_order = o.id_order WHERE a.status = "waiting" ORDER BY a.date_add ASC';
+        $waitingAssignment = Db::getInstance()->getRow($sql);
+
+        if (!$waitingAssignment) {
+            return false; // No waiting orders
+        }
+
+        // Find available locker
+        if ($idLocker) {
+            $sql = 'SELECT * FROM `'._DB_PREFIX_.'rkpickup_locker` WHERE `id_locker` = '.(int)$idLocker.' AND `status` = "available" AND `active` = 1';
+        } else {
+            $sql = 'SELECT * FROM `'._DB_PREFIX_.'rkpickup_locker` WHERE `status` = "available" AND `active` = 1 ORDER BY `id_locker` ASC';
+        }
+        $locker = Db::getInstance()->getRow($sql);
+
+        if (!$locker) {
+            return false; // No available locker
+        }
+
+        // Generate PIN via TTLock API
+        $api = new TTLockAPI(
+            Configuration::get('RKPICKUP_TTLOCK_CLIENT_ID'),
+            Configuration::get('RKPICKUP_TTLOCK_CLIENT_SECRET')
+        );
+
+        $authResult = $api->authenticate(
+            Configuration::get('RKPICKUP_TTLOCK_USERNAME'),
+            Configuration::get('RKPICKUP_TTLOCK_PASSWORD')
+        );
+
+        if (!$authResult['success']) {
+            PrestaShopLogger::addLog('RkPickup: Error autenticación TTLock al procesar cola', 3, null, 'Order', $waitingAssignment['id_order']);
+            return false;
+        }
+
+        // Calculate validity period
+        $validityHours = (int) Configuration::get('RKPICKUP_PIN_VALIDITY_HOURS');
+        $validFrom = time() * 1000;
+        $validUntil = ($validFrom + ($validityHours * 3600 * 1000));
+
+        // Create passcode
+        $passcodeResult = $api->createPasscode(
+            $locker['lock_id'],
+            $validFrom,
+            $validUntil
+        );
+
+        if (!$passcodeResult['success']) {
+            PrestaShopLogger::addLog('RkPickup: Error creando PIN desde cola - ' . $passcodeResult['error'], 3, null, 'Order', $waitingAssignment['id_order']);
+            return false;
+        }
+
+        // Update assignment
+        Db::getInstance()->update('rkpickup_assignment', [
+            'id_locker' => (int) $locker['id_locker'],
+            'pin_code' => pSQL($passcodeResult['passcode']),
+            'ttlock_passcode_id' => pSQL($passcodeResult['passcode_id']),
+            'status' => 'ready',
+            'valid_from' => date('Y-m-d H:i:s', $validFrom / 1000),
+            'valid_until' => date('Y-m-d H:i:s', $validUntil / 1000),
+            'date_upd' => date('Y-m-d H:i:s'),
+        ], 'id_assignment = ' . (int) $waitingAssignment['id_assignment']);
+
+        // Mark locker as occupied
+        Db::getInstance()->update('rkpickup_locker', [
+            'status' => 'occupied',
+            'date_upd' => date('Y-m-d H:i:s'),
+        ], 'id_locker = ' . (int) $locker['id_locker']);
+
+        // Update order status to ready
+        $this->updateOrderStatusFromAssignment($waitingAssignment['id_order'], 'ready');
+
+        // Send pickup ready email
+        $order = new Order($waitingAssignment['id_order']);
+        if (Validate::isLoadedObject($order) && Configuration::get('RKPICKUP_SEND_EMAIL')) {
+            $this->sendPickupEmail($order, $locker, $passcodeResult['passcode']);
+        }
+
+        PrestaShopLogger::addLog(
+            'RkPickup: Pedido de cola asignado a taquilla ' . $locker['name'] . ' con PIN ' . $passcodeResult['passcode'],
+            1, null, 'Order', $waitingAssignment['id_order']
         );
 
         return true;
@@ -615,6 +1010,227 @@ class RkPickup extends Module
             null,
             null,
             null,
+            dirname(__FILE__) . '/mails/',
+            false,
+            (int) $order->id_shop
+        );
+    }
+
+    /**
+     * Update order status based on assignment status (bijective mapping)
+     * Only for Click & Collect orders
+     */
+    public function updateOrderStatusFromAssignment($orderId, $assignmentStatus)
+    {
+        $statusMap = [
+            'waiting' => Configuration::get('RKPICKUP_OS_WAITING'),
+            'ready' => Configuration::get('RKPICKUP_OS_READY'),
+            'expired_grace' => Configuration::get('RKPICKUP_OS_EXPIRED_GRACE'),
+            'expired' => Configuration::get('RKPICKUP_OS_EXPIRED'),
+            'picked_up' => Configuration::get('RKPICKUP_OS_PICKED_UP'),
+        ];
+
+        if (!isset($statusMap[$assignmentStatus]) || !$statusMap[$assignmentStatus]) {
+            return false;
+        }
+
+        $newStatusId = (int) $statusMap[$assignmentStatus];
+        $order = new Order($orderId);
+        
+        if (!Validate::isLoadedObject($order)) {
+            return false;
+        }
+
+        // Don't update if already in that status
+        if ($order->current_state == $newStatusId) {
+            return true;
+        }
+
+        $history = new OrderHistory();
+        $history->id_order = $orderId;
+        $history->id_employee = 0;
+        $history->changeIdOrderState($newStatusId, $orderId);
+        $history->add();
+
+        PrestaShopLogger::addLog(
+            sprintf('RkPickup: Order #%d status changed to %s', $orderId, $assignmentStatus),
+            1, null, 'Order', $orderId, true
+        );
+
+        return true;
+    }
+
+    /**
+     * Process expired assignments (called by cron)
+     */
+    public function processExpirations()
+    {
+        require_once dirname(__FILE__) . '/classes/TTLockAPI.php';
+        
+        $now = date('Y-m-d H:i:s');
+        $prefix = _DB_PREFIX_;
+
+        // Find expired assignments that are still 'ready'
+        $sql = "SELECT a.*, l.lock_id, o.id_lang 
+                FROM {$prefix}rkpickup_assignment a 
+                JOIN {$prefix}rkpickup_locker l ON a.id_locker = l.id_locker
+                JOIN {$prefix}orders o ON a.id_order = o.id_order
+                WHERE a.status = 'ready' 
+                AND a.valid_until < '{$now}'";
+        $expiredAssignments = Db::getInstance()->executeS($sql);
+
+        if (!$expiredAssignments) {
+            return ['processed' => 0];
+        }
+
+        // Check if there are waiting orders
+        $waitingCount = (int) Db::getInstance()->getValue(
+            "SELECT COUNT(*) FROM {$prefix}rkpickup_assignment WHERE status = 'waiting'"
+        );
+
+        $processed = 0;
+        foreach ($expiredAssignments as $assignment) {
+            if ($waitingCount > 0) {
+                // There are waiting orders - cancel this one and reassign
+                $this->expireAndReassign($assignment);
+                $waitingCount--; // One waiting order will be assigned
+            } else {
+                // No waiting orders - grace period
+                $this->setExpiredGrace($assignment);
+            }
+            $processed++;
+        }
+
+        return ['processed' => $processed, 'had_waiting' => $waitingCount > 0];
+    }
+
+    /**
+     * Expire assignment and reassign locker to waiting order
+     */
+    protected function expireAndReassign($assignment)
+    {
+        $api = new TTLockAPI(
+            Configuration::get('RKPICKUP_TTLOCK_CLIENT_ID'),
+            Configuration::get('RKPICKUP_TTLOCK_CLIENT_SECRET')
+        );
+
+        $api->authenticate(
+            Configuration::get('RKPICKUP_TTLOCK_USERNAME'),
+            Configuration::get('RKPICKUP_TTLOCK_PASSWORD')
+        );
+
+        // Delete the PIN
+        if ($assignment['ttlock_passcode_id']) {
+            $api->deletePasscode($assignment['lock_id'], $assignment['ttlock_passcode_id']);
+        }
+
+        // Mark assignment as expired
+        Db::getInstance()->update('rkpickup_assignment', [
+            'status' => 'expired',
+            'date_upd' => date('Y-m-d H:i:s'),
+        ], 'id_assignment = ' . (int) $assignment['id_assignment']);
+
+        // Update order status
+        $this->updateOrderStatusFromAssignment($assignment['id_order'], 'expired');
+
+        // Mark locker as available
+        Db::getInstance()->update('rkpickup_locker', [
+            'status' => 'available',
+            'date_upd' => date('Y-m-d H:i:s'),
+        ], 'id_locker = ' . (int) $assignment['id_locker']);
+
+        // Send cancellation email
+        $this->sendExpiredCancelledEmail($assignment);
+
+        // Process waiting queue for this locker
+        $this->processWaitingQueue($assignment['id_locker']);
+
+        PrestaShopLogger::addLog(
+            'RkPickup: Assignment expired and reassigned for order #' . $assignment['id_order'],
+            1, null, 'Order', $assignment['id_order'], true
+        );
+    }
+
+    /**
+     * Set assignment to grace period (expired but can still pickup)
+     */
+    protected function setExpiredGrace($assignment)
+    {
+        // Update assignment status but keep PIN active
+        Db::getInstance()->update('rkpickup_assignment', [
+            'status' => 'expired_grace',
+            'date_upd' => date('Y-m-d H:i:s'),
+        ], 'id_assignment = ' . (int) $assignment['id_assignment']);
+
+        // Update order status
+        $this->updateOrderStatusFromAssignment($assignment['id_order'], 'expired_grace');
+
+        // Send grace period email
+        $this->sendExpiredGraceEmail($assignment);
+
+        PrestaShopLogger::addLog(
+            'RkPickup: Assignment set to grace period for order #' . $assignment['id_order'],
+            1, null, 'Order', $assignment['id_order'], true
+        );
+    }
+
+    /**
+     * Send expired grace email
+     */
+    protected function sendExpiredGraceEmail($assignment)
+    {
+        $order = new Order($assignment['id_order']);
+        $customer = new Customer($order->id_customer);
+        
+        $locker = Db::getInstance()->getRow(
+            'SELECT * FROM '._DB_PREFIX_.'rkpickup_locker WHERE id_locker = '.(int)$assignment['id_locker']
+        );
+
+        $templateVars = [
+            '{firstname}' => $customer->firstname,
+            '{lastname}' => $customer->lastname,
+            '{order_reference}' => $order->reference,
+            '{locker_name}' => $locker['name'],
+            '{pin_code}' => $assignment['pin_code'],
+            '{pickup_address}' => Configuration::get('RKPICKUP_PICKUP_ADDRESS'),
+        ];
+
+        Mail::Send(
+            (int) $order->id_lang,
+            'pickup_expired_grace',
+            $this->l('Aviso: Tu plazo de recogida ha expirado'),
+            $templateVars,
+            $customer->email,
+            $customer->firstname . ' ' . $customer->lastname,
+            null, null, null, null,
+            dirname(__FILE__) . '/mails/',
+            false,
+            (int) $order->id_shop
+        );
+    }
+
+    /**
+     * Send expired cancelled email
+     */
+    protected function sendExpiredCancelledEmail($assignment)
+    {
+        $order = new Order($assignment['id_order']);
+        $customer = new Customer($order->id_customer);
+
+        $templateVars = [
+            '{firstname}' => $customer->firstname,
+            '{lastname}' => $customer->lastname,
+            '{order_reference}' => $order->reference,
+        ];
+
+        Mail::Send(
+            (int) $order->id_lang,
+            'pickup_expired_cancelled',
+            $this->l('Tu reserva de taquilla ha sido cancelada'),
+            $templateVars,
+            $customer->email,
+            $customer->firstname . ' ' . $customer->lastname,
+            null, null, null, null,
             dirname(__FILE__) . '/mails/',
             false,
             (int) $order->id_shop
@@ -659,5 +1275,55 @@ class RkPickup extends Module
         ]);
 
         return $this->display(__FILE__, 'views/templates/hook/order_confirmation.tpl');
+    }
+
+    /**
+     * Hook: Intercept emails before sending
+     * Block standard order/payment emails for pickup orders
+     */
+    public function hookActionEmailSendBefore($params)
+    {
+        // Email templates to block for pickup orders
+        $blockedTemplates = ['order_conf', 'payment'];
+        
+        $template = $params['template'] ?? '';
+        
+        // Check if this is a blocked template
+        if (!in_array($template, $blockedTemplates)) {
+            return true; // Allow email
+        }
+
+        // Try to get order ID from template vars
+        $templateVars = $params['templateVars'] ?? [];
+        $orderId = null;
+        
+        // PrestaShop sends {id_order} or we can extract from {order_name}
+        if (isset($templateVars['{id_order}'])) {
+            $orderId = (int) $templateVars['{id_order}'];
+        } elseif (isset($templateVars['{order_name}'])) {
+            // Get order by reference
+            $reference = $templateVars['{order_name}'];
+            $sql = 'SELECT id_order FROM `'._DB_PREFIX_.'orders` WHERE reference = "'.pSQL($reference).'"';
+            $orderId = (int) Db::getInstance()->getValue($sql);
+        }
+
+        if (!$orderId) {
+            return true; // Can't determine order, allow email
+        }
+
+        // Check if this order has a pickup assignment
+        $sql = 'SELECT COUNT(*) FROM `'._DB_PREFIX_.'rkpickup_assignment` WHERE id_order = '.(int)$orderId;
+        $hasPickup = (int) Db::getInstance()->getValue($sql) > 0;
+
+        if ($hasPickup) {
+            // Block this email - the module will send its own pickup email
+            PrestaShopLogger::addLog(
+                'RkPickup: Blocked "'.$template.'" email for pickup order #'.$orderId,
+                1, null, 'Order', $orderId, true
+            );
+            return false; // Block email
+        }
+
+        return true; // Allow email for non-pickup orders
     }
 }

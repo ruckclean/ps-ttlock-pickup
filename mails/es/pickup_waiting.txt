@@ -1,0 +1,23 @@
+Pedido en cola de espera
+
+Hola {firstname},
+
+Gracias por tu pedido #{order_reference}.
+
+AVISO IMPORTANTE:
+Actualmente todas nuestras taquillas de recogida están ocupadas.
+
+No te preocupes, tu pedido está en cola y TE AVISAREMOS POR EMAIL en cuanto tengamos una taquilla disponible con tu código PIN para recogerlo.
+
+UBICACIÓN DE RECOGIDA:
+{pickup_address}
+
+Disculpa las molestias. Si tienes prisa o prefieres otra opción de entrega, no dudes en contactarnos y buscaremos una solución.
+
+Un saludo,
+El equipo de Ruckclean
+
+--
+¿Preguntas? Escríbenos a info@ruckclean.com
+
+Ruckclean - El mejor lavado de Las Rozas

@@ -169,13 +169,20 @@ class TTLockAPI
             'accessToken' => $this->accessToken,
             'lockId' => $lockId,
             'keyboardPwdId' => $passcodeId,
-            'deleteType' => 2, // 2 = Delete from lock
+            'deleteType' => 2, // 2 = Delete from lock via gateway
             'date' => $this->getTimestamp(),
         ];
 
         $response = $this->request($endpoint, $params);
 
-        return isset($response['errcode']) && $response['errcode'] == 0;
+        if (isset($response['errcode']) && $response['errcode'] == 0) {
+            return ['success' => true];
+        }
+        
+        return [
+            'success' => false,
+            'error' => isset($response['errmsg']) ? $response['errmsg'] : 'Failed to delete passcode',
+        ];
     }
 
     /**

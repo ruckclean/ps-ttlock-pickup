@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Reserva de taquilla cancelada</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #e74c3c, #c0392b); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0;">❌ Reserva cancelada</h1>
+    </div>
+    
+    <div style="background: #f8d7da; border: 1px solid #f5c6cb; padding: 20px; text-align: center;">
+        <p style="margin: 0; font-size: 16px; color: #721c24;">
+            Tu plazo de recogida expiró y había clientes en espera, por lo que tu reserva ha sido cancelada.
+        </p>
+    </div>
+    
+    <div style="padding: 30px; background: #f9f9f9;">
+        <p>Hola <strong>{firstname}</strong>,</p>
+        
+        <p>Lamentamos informarte que tu reserva de taquilla para el pedido <strong>#{order_reference}</strong> 
+        ha sido cancelada porque:</p>
+        
+        <ul>
+            <li>Tu plazo de recogida de 72 horas expiró</li>
+            <li>Había otros clientes esperando taquilla</li>
+        </ul>
+        
+        <div style="background: white; border: 2px solid #e74c3c; border-radius: 10px; padding: 25px; margin: 20px 0; text-align: center;">
+            <p style="margin: 0 0 10px 0; font-size: 14px; color: #666;">Pedido</p>
+            <p style="margin: 0; font-size: 24px; font-weight: bold; color: #333;">#{order_reference}</p>
+            <p style="margin: 15px 0 0 0; color: #e74c3c;">
+                <strong>⚠️ Tu PIN ya no es válido</strong>
+            </p>
+        </div>
+
+        <div style="background: white; border-radius: 10px; padding: 20px; margin: 20px 0;">
+            <h3 style="margin: 0 0 10px 0; color: #333;">🔄 ¿Qué puedo hacer?</h3>
+            <p style="margin: 0; color: #666;">
+                Por favor, contacta con nosotros para coordinar la entrega de tu pedido:
+            </p>
+            <ul style="color: #666;">
+                <li>📧 Email: <a href="mailto:hola@ruckclean.com" style="color: #00D4AA;">hola@ruckclean.com</a></li>
+                <li>📱 WhatsApp: <a href="https://wa.me/34600000000" style="color: #00D4AA;">+34 600 00 00 00</a></li>
+            </ul>
+            <p style="margin: 10px 0 0 0; color: #666;">
+                Podemos reenviarte el pedido, coordinar una nueva recogida, o tramitar un reembolso.
+            </p>
+        </div>
+        
+        <p style="color: #666; font-size: 14px;">
+            Sentimos las molestias. Intentamos avisar antes de que expirara el plazo.
+        </p>
+    </div>
+    
+    <div style="background: #1A1A1A; color: white; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+        <p style="margin: 0; font-size: 12px;">
+            RuckClean - Tu llavero de coche siempre limpio<br>
+            <a href="https://ruckclean.com" style="color: #00D4AA;">ruckclean.com</a>
+        </p>
+    </div>
+</body>
+</html>

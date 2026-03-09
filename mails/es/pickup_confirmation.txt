@@ -1,0 +1,18 @@
+¡Pedido Recogido!
+
+Hola {firstname},
+
+Te confirmamos que tu pedido #{order_name} ha sido recogido correctamente.
+
+Taquilla: {locker_name}
+Fecha de recogida: {pickup_time}
+
+¡Gracias por confiar en Ruckclean! Esperamos verte pronto en nuestro autolavado.
+
+Un saludo,
+El equipo de Ruckclean
+
+--
+Ruckclean - Autolavado Self-Service
+Calle Jazmín, 6 - Las Rozas de Madrid
+info@ruckclean.com

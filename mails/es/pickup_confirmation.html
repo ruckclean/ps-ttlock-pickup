@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Pedido recogido</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: #00D4AA; padding: 20px; text-align: center;">
+        <h1 style="color: white; margin: 0;">✅ ¡Pedido Recogido!</h1>
+    </div>
+    
+    <div style="padding: 30px; background: #f9f9f9;">
+        <p>Hola <strong>{firstname}</strong>,</p>
+        
+        <p>Te confirmamos que tu pedido <strong>#{order_name}</strong> ha sido recogido correctamente.</p>
+        
+        <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>📍 Taquilla:</strong> {locker_name}</p>
+            <p><strong>🕐 Fecha de recogida:</strong> {pickup_time}</p>
+        </div>
+        
+        <p>¡Gracias por confiar en Ruckclean! Esperamos verte pronto en nuestro autolavado.</p>
+        
+        <p style="margin-top: 30px;">
+            Un saludo,<br>
+            <strong>El equipo de Ruckclean</strong>
+        </p>
+    </div>
+    
+    <div style="text-align: center; padding: 20px; color: #666; font-size: 12px;">
+        <p>Ruckclean - Autolavado Self-Service<br>
+        Calle Jazmín, 6 - Las Rozas de Madrid<br>
+        info@ruckclean.com</p>
+    </div>
+</body>
+</html>
