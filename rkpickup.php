@@ -684,8 +684,9 @@ class RkPickup extends Module
             return; // Don't assign yet
         }
         
-        // For online payments (Redsys, PayPal, etc.), assign immediately
-        $this->assignLockerToOrder($order);
+        // For online payments (Redsys, PayPal, etc.), assign locker but DON'T change order status yet
+        // The payment module will set "Payment accepted" after this, then we change to "Ready for pickup"
+        $this->assignLockerToOrder($order, false); // false = don't change PS order status
     }
 
     /**
@@ -713,31 +714,52 @@ class RkPickup extends Module
             return;
         }
 
-        // Check if this order already has an assignment
-        $existingAssignment = Db::getInstance()->getValue(
-            'SELECT id_assignment FROM `'._DB_PREFIX_.'rkpickup_assignment` WHERE id_order = '.(int)$orderId
+        // Check if this order already has an assignment with status 'ready'
+        $existingAssignment = Db::getInstance()->getRow(
+            'SELECT * FROM `'._DB_PREFIX_.'rkpickup_assignment` WHERE id_order = '.(int)$orderId
         );
 
         if ($existingAssignment) {
-            return; // Already has assignment
+            // Order already has assignment - update PS order status to "Ready for pickup"
+            // This happens for online payments (Redsys) where we assigned locker in actionValidateOrder
+            // but didn't change PS status (waiting for Redsys to confirm payment first)
+            if ($existingAssignment['status'] == 'ready') {
+                PrestaShopLogger::addLog(
+                    'RkPickup: Pago confirmado, actualizando estado a Listo para recoger',
+                    1, null, 'Order', $order->id
+                );
+                $this->updateOrderStatusFromAssignment($orderId, 'ready');
+            } elseif ($existingAssignment['status'] == 'waiting') {
+                PrestaShopLogger::addLog(
+                    'RkPickup: Pago confirmado, pedido en cola de espera',
+                    1, null, 'Order', $order->id
+                );
+                $this->updateOrderStatusFromAssignment($orderId, 'waiting');
+            }
+            return;
         }
 
-        // Check if it was an offline payment
+        // No assignment yet - this is an offline payment (bank transfer)
         $offlinePayments = ['ps_wirepayment', 'bankwire', 'cheque', 'ps_checkpayment'];
         
         if (in_array($order->module, $offlinePayments)) {
             PrestaShopLogger::addLog(
-                'RkPickup: Pago confirmado, asignando taquilla',
+                'RkPickup: Pago offline confirmado, asignando taquilla',
                 1, null, 'Order', $order->id
             );
-            $this->assignLockerToOrder($order);
+            $this->assignLockerToOrder($order, true); // true = update PS order status
         }
     }
 
     /**
      * Assign an available locker to an order
      */
-    public function assignLockerToOrder($order)
+    /**
+     * Assign an available locker to an order
+     * @param Order $order
+     * @param bool $updateOrderStatus - Whether to update PrestaShop order status (false for online payments, Redsys will trigger it)
+     */
+    public function assignLockerToOrder($order, $updateOrderStatus = true)
     {
         require_once dirname(__FILE__) . '/classes/TTLockAPI.php';
         
@@ -748,7 +770,7 @@ class RkPickup extends Module
         if (!$locker) {
             // No lockers available - put order in waiting queue
             PrestaShopLogger::addLog('RkPickup: No hay taquillas disponibles, pedido en cola de espera', 2, null, 'Order', $order->id);
-            return $this->addToWaitingQueue($order);
+            return $this->addToWaitingQueue($order, $updateOrderStatus);
         }
 
         // Generate PIN via TTLock API
@@ -803,8 +825,10 @@ class RkPickup extends Module
             'date_upd' => date('Y-m-d H:i:s'),
         ], 'id_locker = ' . (int) $locker['id_locker']);
 
-        // Update order status to ready
-        $this->updateOrderStatusFromAssignment($order->id, 'ready');
+        // Update order status to ready (only if not waiting for payment module to finish)
+        if ($updateOrderStatus) {
+            $this->updateOrderStatusFromAssignment($order->id, 'ready');
+        }
 
         // Send email to customer
         if (Configuration::get('RKPICKUP_SEND_EMAIL')) {
@@ -822,7 +846,7 @@ class RkPickup extends Module
     /**
      * Add order to waiting queue when no lockers available
      */
-    protected function addToWaitingQueue($order)
+    protected function addToWaitingQueue($order, $updateOrderStatus = true)
     {
         // Create waiting assignment (no locker assigned yet)
         Db::getInstance()->insert('rkpickup_assignment', [
@@ -837,8 +861,10 @@ class RkPickup extends Module
             'date_upd' => date('Y-m-d H:i:s'),
         ]);
 
-        // Update order status to waiting
-        $this->updateOrderStatusFromAssignment($order->id, 'waiting');
+        // Update order status to waiting (only if not waiting for payment module)
+        if ($updateOrderStatus) {
+            $this->updateOrderStatusFromAssignment($order->id, 'waiting');
+        }
 
         // Send waiting email to customer
         if (Configuration::get('RKPICKUP_SEND_EMAIL')) {
