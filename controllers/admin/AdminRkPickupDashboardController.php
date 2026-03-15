@@ -50,6 +50,9 @@ class AdminRkPickupDashboardController extends ModuleAdminController
         
         // Get recent history
         $recentHistory = $this->getRecentHistory();
+        
+        // Get operations history
+        $operationsHistory = $this->getOperationsHistory();
 
         $this->context->smarty->assign([
             'stats' => $stats,
@@ -57,6 +60,7 @@ class AdminRkPickupDashboardController extends ModuleAdminController
             'active_assignments' => $activeAssignments,
             'waiting_assignments' => $waitingAssignments,
             'recent_history' => $recentHistory,
+            'operations_history' => $operationsHistory,
             'current_url' => $this->context->link->getAdminLink('AdminRkPickupDashboard'),
             'order_link_base' => $this->context->link->getAdminLink('AdminOrders'),
         ]);
@@ -143,6 +147,20 @@ class AdminRkPickupDashboardController extends ModuleAdminController
                 WHERE a.status IN ('picked_up', 'expired', 'cancelled') 
                 ORDER BY a.date_upd DESC 
                 LIMIT 10";
+        return Db::getInstance()->executeS($sql);
+    }
+
+    protected function getOperationsHistory()
+    {
+        $prefix = _DB_PREFIX_;
+        $sql = "SELECT h.*, 
+                       l.name as locker_name, 
+                       o.reference as order_reference 
+                FROM {$prefix}rkpickup_history h 
+                LEFT JOIN {$prefix}rkpickup_locker l ON h.id_locker = l.id_locker 
+                LEFT JOIN {$prefix}orders o ON h.id_order = o.id_order 
+                ORDER BY h.date_add DESC 
+                LIMIT 20";
         return Db::getInstance()->executeS($sql);
     }
 

@@ -840,6 +840,14 @@ class RkPickup extends Module
             1, null, 'Order', $order->id
         );
 
+        // Add to history
+        $this->addHistory(
+            'assigned',
+            'Taquilla ' . $locker['name'] . ' asignada a pedido #' . $order->id . '.',
+            $order->id,
+            $locker['id_locker']
+        );
+
         return true;
     }
 
@@ -874,6 +882,13 @@ class RkPickup extends Module
         PrestaShopLogger::addLog(
             'RkPickup: Pedido añadido a cola de espera',
             1, null, 'Order', $order->id
+        );
+
+        // Add to history
+        $this->addHistory(
+            'waiting',
+            'Pedido #' . $order->id . ' añadido a cola de espera (sin taquillas disponibles).',
+            $order->id
         );
 
         return true;
@@ -1003,6 +1018,15 @@ class RkPickup extends Module
             1, null, 'Order', $waitingAssignment['id_order']
         );
 
+        // Add to history
+        $this->addHistory(
+            'assigned_from_queue',
+            'Taquilla ' . $locker['name'] . ' asignada a pedido #' . $waitingAssignment['id_order'] . ' desde cola de espera.',
+            $waitingAssignment['id_order'],
+            $locker['id_locker'],
+            $waitingAssignment['id_assignment']
+        );
+
         return true;
     }
 
@@ -1040,6 +1064,21 @@ class RkPickup extends Module
             false,
             (int) $order->id_shop
         );
+    }
+
+    /**
+     * Add entry to operations history
+     */
+    public function addHistory($action, $description, $idOrder = null, $idLocker = null, $idAssignment = null)
+    {
+        return Db::getInstance()->insert('rkpickup_history', [
+            'id_order' => $idOrder ? (int) $idOrder : null,
+            'id_locker' => $idLocker ? (int) $idLocker : null,
+            'id_assignment' => $idAssignment ? (int) $idAssignment : null,
+            'action' => pSQL($action),
+            'description' => pSQL($description),
+            'date_add' => date('Y-m-d H:i:s'),
+        ]);
     }
 
     /**
@@ -1175,6 +1214,15 @@ class RkPickup extends Module
 
         // Send requeued email (not cancelled!)
         $this->sendExpiredRequeuedEmail($assignment);
+
+        // Add to history
+        $this->addHistory(
+            'expired',
+            'Reserva expirada. Pedido #' . $assignment['id_order'] . ' vuelve a cola de espera.',
+            $assignment['id_order'],
+            $assignment['id_locker'],
+            $assignment['id_assignment']
+        );
 
         // Process waiting queue for this locker (will assign to oldest waiting, which might be someone else)
         $this->processWaitingQueue($assignment['id_locker']);

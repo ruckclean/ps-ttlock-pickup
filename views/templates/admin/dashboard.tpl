@@ -275,4 +275,57 @@
         </table>
     </div>
     {/if}
+
+{* Historial de Operaciones *}
+    {if $operations_history|count > 0}
+    <div class="panel">
+        <div class="panel-heading">
+            <i class="icon-list-alt"></i> Historial de Operaciones
+        </div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Acción</th>
+                    <th>Descripción</th>
+                    <th>Pedido</th>
+                    <th>Taquilla</th>
+                </tr>
+            </thead>
+            <tbody>
+                {foreach from=$operations_history item=op}
+                    <tr>
+                        <td>{$op.date_add|date_format:"%d/%m/%Y %H:%M"}</td>
+                        <td>
+                            {if $op.action == 'assigned'}
+                                <span class="label label-success">Asignado</span>
+                            {elseif $op.action == 'assigned_from_queue'}
+                                <span class="label label-info">Asignado (cola)</span>
+                            {elseif $op.action == 'waiting'}
+                                <span class="label label-warning">En espera</span>
+                            {elseif $op.action == 'expired'}
+                                <span class="label label-danger">Expirado</span>
+                            {elseif $op.action == 'picked_up'}
+                                <span class="label label-success">Recogido</span>
+                            {else}
+                                <span class="label label-default">{$op.action}</span>
+                            {/if}
+                        </td>
+                        <td>{$op.description}</td>
+                        <td>
+                            {if $op.order_reference}
+                                <a href="{$order_link_base}&id_order={$op.id_order}&vieworder" target="_blank">
+                                    #{$op.order_reference}
+                                </a>
+                            {else}
+                                -
+                            {/if}
+                        </td>
+                        <td>{$op.locker_name|default:'-'}</td>
+                    </tr>
+                {/foreach}
+            </tbody>
+        </table>
+    </div>
+    {/if}
 </div>
