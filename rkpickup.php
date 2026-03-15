@@ -1152,12 +1152,15 @@ class RkPickup extends Module
         }
 
         // Put assignment back in waiting queue (not cancelled - customer already paid!)
+        // IMPORTANT: Update date_add to NOW so this order goes to the END of the queue
+        // (otherwise it would be reassigned immediately because it has the oldest date_add)
         Db::getInstance()->update('rkpickup_assignment', [
             'status' => 'waiting',
             'id_locker' => 0,
             'pin_code' => '',
             'ttlock_passcode_id' => '',
             'warning_sent' => 0,
+            'date_add' => date('Y-m-d H:i:s'), // Reset to now - goes to end of queue
             'date_upd' => date('Y-m-d H:i:s'),
         ], 'id_assignment = ' . (int) $assignment['id_assignment']);
 
