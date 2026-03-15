@@ -227,60 +227,11 @@
     </div>
     {/if}
 
-    {* Historial Reciente *}
-    {if $recent_history|count > 0}
+    {* Historial Unificado *}
+    {if $unified_history|count > 0}
     <div class="panel">
         <div class="panel-heading">
-            <i class="icon-history"></i> Historial Reciente
-        </div>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Pedido</th>
-                    <th>Taquilla</th>
-                    <th>Estado</th>
-                    <th>Fecha</th>
-                </tr>
-            </thead>
-            <tbody>
-                {foreach from=$recent_history item=history}
-                    <tr>
-                        <td>
-                            <a href="{$order_link_base}&id_order={$history.id_order}&vieworder" target="_blank">
-                                #{$history.order_reference}
-                            </a>
-                        </td>
-                        <td>{$history.locker_name}</td>
-                        <td>
-                            {if $history.status == 'picked_up'}
-                                <span class="label label-success">Recogido</span>
-                            {elseif $history.status == 'expired'}
-                                <span class="label label-danger">Cancelado (expirado)</span>
-                            {elseif $history.status == 'cancelled'}
-                                <span class="label label-danger">Cancelado</span>
-                            {else}
-                                <span class="label label-default">{$history.status}</span>
-                            {/if}
-                        </td>
-                        <td>
-                            {if $history.status == 'picked_up' && $history.picked_up_at}
-                                {$history.picked_up_at|date_format:"%d/%m/%Y %H:%M"}
-                            {else}
-                                {$history.date_upd|date_format:"%d/%m/%Y %H:%M"}
-                            {/if}
-                        </td>
-                    </tr>
-                {/foreach}
-            </tbody>
-        </table>
-    </div>
-    {/if}
-
-{* Historial de Operaciones *}
-    {if $operations_history|count > 0}
-    <div class="panel">
-        <div class="panel-heading">
-            <i class="icon-list-alt"></i> Historial de Operaciones
+            <i class="icon-history"></i> Historial de Operaciones
         </div>
         <table class="table table-striped">
             <thead>
@@ -293,35 +244,37 @@
                 </tr>
             </thead>
             <tbody>
-                {foreach from=$operations_history item=op}
+                {foreach from=$unified_history item=entry}
                     <tr>
-                        <td>{$op.date_add|date_format:"%d/%m/%Y %H:%M"}</td>
+                        <td>{$entry.fecha|date_format:"%d/%m/%Y %H:%M"}</td>
                         <td>
-                            {if $op.action == 'assigned'}
+                            {if $entry.action == 'assigned'}
                                 <span class="label label-success">Asignado</span>
-                            {elseif $op.action == 'assigned_from_queue'}
+                            {elseif $entry.action == 'assigned_from_queue'}
                                 <span class="label label-info">Asignado (cola)</span>
-                            {elseif $op.action == 'waiting'}
+                            {elseif $entry.action == 'waiting'}
                                 <span class="label label-warning">En espera</span>
-                            {elseif $op.action == 'expired'}
+                            {elseif $entry.action == 'expired'}
                                 <span class="label label-danger">Expirado</span>
-                            {elseif $op.action == 'picked_up'}
+                            {elseif $entry.action == 'picked_up'}
                                 <span class="label label-success">Recogido</span>
+                            {elseif $entry.action == 'cancelled'}
+                                <span class="label label-danger">Cancelado</span>
                             {else}
-                                <span class="label label-default">{$op.action}</span>
+                                <span class="label label-default">{$entry.action}</span>
                             {/if}
                         </td>
-                        <td>{$op.description}</td>
+                        <td>{$entry.description}</td>
                         <td>
-                            {if $op.order_reference}
-                                <a href="{$order_link_base}&id_order={$op.id_order}&vieworder" target="_blank">
-                                    #{$op.order_reference}
+                            {if $entry.order_reference}
+                                <a href="{$order_link_base}&id_order={$entry.id_order}&vieworder" target="_blank">
+                                    #{$entry.order_reference}
                                 </a>
                             {else}
                                 -
                             {/if}
                         </td>
-                        <td>{$op.locker_name|default:'-'}</td>
+                        <td>{$entry.locker_name|default:'-'}</td>
                     </tr>
                 {/foreach}
             </tbody>

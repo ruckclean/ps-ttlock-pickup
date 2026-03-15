@@ -48,19 +48,15 @@ class AdminRkPickupDashboardController extends ModuleAdminController
         // Get waiting assignments
         $waitingAssignments = $this->getWaitingAssignments();
         
-        // Get recent history
-        $recentHistory = $this->getRecentHistory();
-        
-        // Get operations history
-        $operationsHistory = $this->getOperationsHistory();
+        // Get unified history (operations + completed assignments)
+        $unifiedHistory = $this->getUnifiedHistory();
 
         $this->context->smarty->assign([
             'stats' => $stats,
             'lockers' => $lockers,
             'active_assignments' => $activeAssignments,
             'waiting_assignments' => $waitingAssignments,
-            'recent_history' => $recentHistory,
-            'operations_history' => $operationsHistory,
+            'unified_history' => $unifiedHistory,
             'current_url' => $this->context->link->getAdminLink('AdminRkPickupDashboard'),
             'order_link_base' => $this->context->link->getAdminLink('AdminOrders'),
         ]);
@@ -135,32 +131,43 @@ class AdminRkPickupDashboardController extends ModuleAdminController
         return Db::getInstance()->executeS($sql);
     }
 
-    protected function getRecentHistory()
+    protected function getUnifiedHistory()
     {
         $prefix = _DB_PREFIX_;
-        $sql = "SELECT a.*, 
-                       l.name as locker_name, 
-                       o.reference as order_reference 
-                FROM {$prefix}rkpickup_assignment a 
-                JOIN {$prefix}rkpickup_locker l ON a.id_locker = l.id_locker 
-                JOIN {$prefix}orders o ON a.id_order = o.id_order 
-                WHERE a.status IN ('picked_up', 'expired', 'cancelled') 
-                ORDER BY a.date_upd DESC 
-                LIMIT 10";
-        return Db::getInstance()->executeS($sql);
-    }
-
-    protected function getOperationsHistory()
-    {
-        $prefix = _DB_PREFIX_;
-        $sql = "SELECT h.*, 
-                       l.name as locker_name, 
-                       o.reference as order_reference 
+        
+        // Get operations from history table
+        $sql = "SELECT 
+                    h.date_add as fecha,
+                    h.action,
+                    h.description,
+                    o.reference as order_reference,
+                    h.id_order,
+                    l.name as locker_name
                 FROM {$prefix}rkpickup_history h 
                 LEFT JOIN {$prefix}rkpickup_locker l ON h.id_locker = l.id_locker 
                 LEFT JOIN {$prefix}orders o ON h.id_order = o.id_order 
-                ORDER BY h.date_add DESC 
-                LIMIT 20";
+                
+                UNION ALL
+                
+                SELECT 
+                    COALESCE(a.picked_up_at, a.date_upd) as fecha,
+                    a.status as action,
+                    CASE 
+                        WHEN a.status = 'picked_up' THEN CONCAT('Pedido #', o.reference, ' recogido de taquilla ', l.name)
+                        WHEN a.status = 'cancelled' THEN CONCAT('Pedido #', o.reference, ' cancelado')
+                        ELSE CONCAT('Pedido #', o.reference, ' - ', a.status)
+                    END as description,
+                    o.reference as order_reference,
+                    a.id_order,
+                    l.name as locker_name
+                FROM {$prefix}rkpickup_assignment a 
+                JOIN {$prefix}rkpickup_locker l ON a.id_locker = l.id_locker 
+                JOIN {$prefix}orders o ON a.id_order = o.id_order 
+                WHERE a.status IN ('picked_up', 'cancelled')
+                
+                ORDER BY fecha DESC 
+                LIMIT 30";
+        
         return Db::getInstance()->executeS($sql);
     }
 
