@@ -36,6 +36,10 @@ class AdminRkPickupDashboardController extends ModuleAdminController
             $this->setMaintenance((int) Tools::getValue('id_locker'));
         }
 
+        if (Tools::isSubmit('saveLlaveroUid') && Tools::getValue('id_assignment')) {
+            $this->saveLlaveroUid((int) Tools::getValue('id_assignment'), Tools::getValue('llavero_uid'));
+        }
+
         // Get stats
         $stats = $this->getStats();
         
@@ -84,12 +88,14 @@ class AdminRkPickupDashboardController extends ModuleAdminController
         $sql = "SELECT l.*, 
                        l.operator_pin,
                        DATE_FORMAT(l.operator_pin_valid_until, '%d/%m/%Y %H:%i') as operator_pin_valid_until,
+                       a.id_assignment as current_assignment_id,
                        a.id_order as current_order_id, 
                        o.reference as current_order_ref, 
                        CONCAT(c.firstname, ' ', c.lastname) as current_customer, 
                        a.pin_code as current_pin, 
                        a.valid_until as current_valid_until,
-                       a.status as assignment_status
+                       a.status as assignment_status,
+                       a.llavero_uid as current_llavero_uid
                 FROM {$prefix}rkpickup_locker l 
                 LEFT JOIN {$prefix}rkpickup_assignment a ON l.id_locker = a.id_locker AND a.status IN ('pending', 'ready', 'expired_grace') 
                 LEFT JOIN {$prefix}orders o ON a.id_order = o.id_order 
@@ -103,6 +109,7 @@ class AdminRkPickupDashboardController extends ModuleAdminController
     {
         $prefix = _DB_PREFIX_;
         $sql = "SELECT a.*, 
+                       a.llavero_uid,
                        l.name as locker_name, 
                        o.reference as order_reference, 
                        CONCAT(c.firstname, ' ', c.lastname) as customer_name,
@@ -280,6 +287,33 @@ class AdminRkPickupDashboardController extends ModuleAdminController
             );
         } else {
             $this->errors[] = $this->l('Error al generar PIN: ') . ($result['error'] ?? 'Unknown');
+        }
+    }
+
+    /**
+     * Save llavero UID for an assignment
+     */
+    protected function saveLlaveroUid($idAssignment, $llaveroUid)
+    {
+        $llaveroUid = strtoupper(trim(preg_replace('/[^A-Fa-f0-9]/', '', $llaveroUid)));
+        
+        if (empty($llaveroUid)) {
+            $llaveroUid = null;
+        }
+        
+        $result = Db::getInstance()->update('rkpickup_assignment', [
+            'llavero_uid' => $llaveroUid ? pSQL($llaveroUid) : null,
+            'date_upd' => date('Y-m-d H:i:s'),
+        ], 'id_assignment = ' . (int) $idAssignment);
+
+        if ($result) {
+            if ($llaveroUid) {
+                $this->confirmations[] = sprintf($this->l('Llavero %s asociado correctamente'), $llaveroUid);
+            } else {
+                $this->confirmations[] = $this->l('Llavero desvinculado');
+            }
+        } else {
+            $this->errors[] = $this->l('Error al guardar el llavero');
         }
     }
 }

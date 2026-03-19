@@ -110,6 +110,24 @@
                                 <strong>PIN:</strong> <code>{$locker.current_pin}</code><br>
                                 <strong>Válido hasta:</strong> {$locker.current_valid_until|date_format:"%d/%m/%Y %H:%M"}
                             </p>
+                            
+                            {* Llavero UID *}
+                            <form method="post" action="{$current_url}" style="margin: 10px 0;">
+                                <input type="hidden" name="id_assignment" value="{$locker.current_assignment_id}">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-addon"><i class="icon-tag"></i></span>
+                                    <input type="text" name="llavero_uid" class="form-control" 
+                                           placeholder="UID Llavero (ej: A1B2C3D4)" 
+                                           value="{$locker.current_llavero_uid|escape:'html'}"
+                                           style="text-transform: uppercase; font-family: monospace;">
+                                    <span class="input-group-btn">
+                                        <button type="submit" name="saveLlaveroUid" class="btn btn-primary">
+                                            <i class="icon-save"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                            </form>
+                            
                             <a href="{$current_url}&releaseLocker=1&id_locker={$locker.id_locker}" 
                                class="btn btn-warning btn-sm"
                                onclick="return confirm('¿Liberar esta taquilla? Se cancelará la asignación actual.');">
@@ -195,6 +213,7 @@
                     <th>Cliente</th>
                     <th>Taquilla</th>
                     <th>PIN</th>
+                    <th>Llavero</th>
                     <th>Válido hasta</th>
                     <th>Estado</th>
                 </tr>
@@ -210,6 +229,22 @@
                         <td>{$assignment.customer_name}<br><small>{$assignment.customer_email}</small></td>
                         <td>{$assignment.locker_name}</td>
                         <td><code style="font-size: 14px;">{$assignment.pin_code}</code></td>
+                        <td>
+                            <form method="post" action="{$current_url}" style="margin: 0;">
+                                <input type="hidden" name="id_assignment" value="{$assignment.id_assignment}">
+                                <div class="input-group input-group-sm" style="width: 140px;">
+                                    <input type="text" name="llavero_uid" class="form-control" 
+                                           placeholder="UID" 
+                                           value="{$assignment.llavero_uid|escape:'html'}"
+                                           style="text-transform: uppercase; font-family: monospace; font-size: 11px;">
+                                    <span class="input-group-btn">
+                                        <button type="submit" name="saveLlaveroUid" class="btn btn-default btn-sm">
+                                            <i class="icon-save"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                            </form>
+                        </td>
                         <td>{$assignment.valid_until|date_format:"%d/%m/%Y %H:%M"}</td>
                         <td>
                             {if $assignment.status == 'ready'}

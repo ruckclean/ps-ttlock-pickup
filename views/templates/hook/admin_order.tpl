@@ -23,6 +23,13 @@
                 {else}
                     <p><strong>{l s='Taquilla:' mod='rkpickup'}</strong> {$assignment.locker_name}</p>
                     <p><strong>{l s='Código PIN:' mod='rkpickup'}</strong> <code style="font-size: 1.5em; background: #f5f5f5; padding: 5px 10px; border-radius: 4px;">{$assignment.pin_code}</code></p>
+                    <p><strong>{l s='Llavero NFC:' mod='rkpickup'}</strong> 
+                        {if $assignment.llavero_uid}
+                            <code style="font-size: 1.2em; background: #e8f5e9; padding: 3px 8px; border-radius: 4px; color: #2e7d32;">{$assignment.llavero_uid}</code>
+                        {else}
+                            <span style="color: #999;">{l s='No asignado' mod='rkpickup'}</span>
+                        {/if}
+                    </p>
                     <p><strong>{l s='Estado:' mod='rkpickup'}</strong> 
                         {if $assignment.status == 'ready'}
                             <span class="badge badge-success">{l s='Listo para recoger' mod='rkpickup'}</span>
