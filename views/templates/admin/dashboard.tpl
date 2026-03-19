@@ -295,6 +295,8 @@
                                 <span class="label label-success">Recogido</span>
                             {elseif $entry.action == 'cancelled'}
                                 <span class="label label-danger">Cancelado</span>
+                            {elseif $entry.action == 'reclaimed'}
+                                <span class="label label-info">Reclamada</span>
                             {else}
                                 <span class="label label-default">{$entry.action}</span>
                             {/if}
