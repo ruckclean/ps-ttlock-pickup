@@ -767,6 +767,11 @@ class RkPickup extends Module
         $sql = 'SELECT * FROM `'._DB_PREFIX_.'rkpickup_locker` WHERE `status` = "available" AND `active` = 1 ORDER BY `id_locker` ASC';
         $locker = Db::getInstance()->getRow($sql);
 
+        // If no available locker, check for lockers with expired_grace orders (can be reclaimed)
+        if (!$locker) {
+            $locker = $this->reclaimExpiredGraceLocker();
+        }
+
         if (!$locker) {
             // No lockers available - put order in waiting queue
             PrestaShopLogger::addLog('RkPickup: No hay taquillas disponibles, pedido en cola de espera', 2, null, 'Order', $order->id);
@@ -849,6 +854,63 @@ class RkPickup extends Module
         );
 
         return true;
+    }
+
+    /**
+     * Find and reclaim a locker from an expired_grace order
+     * Moves the expired order back to waiting queue and returns the locker
+     */
+    protected function reclaimExpiredGraceLocker()
+    {
+        $prefix = _DB_PREFIX_;
+        
+        // Find a locker with an expired_grace assignment
+        $sql = "SELECT l.*, a.id_assignment, a.id_order as expired_order_id, a.ttlock_passcode_id FROM {$prefix}rkpickup_locker l JOIN {$prefix}rkpickup_assignment a ON l.id_locker = a.id_locker WHERE a.status = 'expired_grace' AND l.active = 1 ORDER BY a.valid_until ASC LIMIT 1";
+        $result = Db::getInstance()->getRow($sql);
+        
+        if (!$result) {
+            return null;
+        }
+        
+        $lockerId = (int) $result['id_locker'];
+        $expiredOrderId = (int) $result['expired_order_id'];
+        $expiredAssignmentId = (int) $result['id_assignment'];
+        $passcodeId = $result['ttlock_passcode_id'];
+        
+        PrestaShopLogger::addLog("RkPickup: Reclamando taquilla {$result['name']} de pedido expirado #{$expiredOrderId}", 1, null, 'Order', $expiredOrderId);
+        
+        // Delete the PIN from TTLock
+        if ($passcodeId) {
+            require_once dirname(__FILE__) . '/classes/TTLockAPI.php';
+            $api = new TTLockAPI(Configuration::get('RKPICKUP_TTLOCK_CLIENT_ID'), Configuration::get('RKPICKUP_TTLOCK_CLIENT_SECRET'));
+            $authResult = $api->authenticate(Configuration::get('RKPICKUP_TTLOCK_USERNAME'), Configuration::get('RKPICKUP_TTLOCK_PASSWORD'));
+            if ($authResult['success']) {
+                $api->deletePasscode($result['lock_id'], $passcodeId);
+            }
+        }
+        
+        // Move expired order back to waiting queue
+        Db::getInstance()->update('rkpickup_assignment', ['id_locker' => 0, 'pin_code' => '', 'ttlock_passcode_id' => '', 'status' => 'waiting', 'date_upd' => date('Y-m-d H:i:s'), 'warning_sent' => 0], 'id_assignment = ' . $expiredAssignmentId);
+        
+        // Update order status to waiting
+        $this->updateOrderStatusFromAssignment($expiredOrderId, 'waiting');
+        
+        // Send requeued email
+        $expiredOrder = new Order($expiredOrderId);
+        if (Validate::isLoadedObject($expiredOrder) && Configuration::get('RKPICKUP_SEND_EMAIL')) {
+            $customer = new Customer($expiredOrder->id_customer);
+            $templateVars = ['{firstname}' => $customer->firstname, '{lastname}' => $customer->lastname, '{order_reference}' => $expiredOrder->reference, '{pickup_address}' => Configuration::get('RKPICKUP_PICKUP_ADDRESS')];
+            Mail::Send((int) $expiredOrder->id_lang, 'pickup_expired_requeued', $this->l('Tu pedido ha vuelto a la cola de espera'), $templateVars, $customer->email, $customer->firstname . ' ' . $customer->lastname, null, null, null, null, dirname(__FILE__) . '/mails/', false, (int) $expiredOrder->id_shop);
+        }
+        
+        // Mark locker as available (will be immediately occupied by new order)
+        Db::getInstance()->update('rkpickup_locker', ['status' => 'available', 'date_upd' => date('Y-m-d H:i:s')], 'id_locker = ' . $lockerId);
+        
+        // Add to history
+        $this->addHistory('reclaimed', "Taquilla {$result['name']} reclamada de pedido expirado #{$expiredOrderId} para nuevo pedido.", $expiredOrderId, $lockerId);
+        
+        // Return the locker data for the new assignment
+        return Db::getInstance()->getRow("SELECT * FROM {$prefix}rkpickup_locker WHERE id_locker = {$lockerId}");
     }
 
     /**
