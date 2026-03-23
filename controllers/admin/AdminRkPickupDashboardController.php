@@ -40,6 +40,10 @@ class AdminRkPickupDashboardController extends ModuleAdminController
             $this->saveLlaveroUid((int) Tools::getValue('id_assignment'), Tools::getValue('llavero_uid'));
         }
 
+        if (Tools::isSubmit('saveLockerLlavero') && Tools::getValue('id_locker')) {
+            $this->saveLockerLlavero((int) Tools::getValue('id_locker'), Tools::getValue('llavero_uid'));
+        }
+
         // Get stats
         $stats = $this->getStats();
         
@@ -311,6 +315,33 @@ class AdminRkPickupDashboardController extends ModuleAdminController
                 $this->confirmations[] = sprintf($this->l('Llavero %s asociado correctamente'), $llaveroUid);
             } else {
                 $this->confirmations[] = $this->l('Llavero desvinculado');
+            }
+        } else {
+            $this->errors[] = $this->l('Error al guardar el llavero');
+        }
+    }
+
+    /**
+     * Save llavero UID for a locker (pre-stock)
+     */
+    protected function saveLockerLlavero($idLocker, $llaveroUid)
+    {
+        $llaveroUid = strtoupper(trim(preg_replace('/[^A-Fa-f0-9]/', '', $llaveroUid)));
+        
+        if (empty($llaveroUid)) {
+            $llaveroUid = null;
+        }
+        
+        $result = Db::getInstance()->update('rkpickup_locker', [
+            'llavero_uid' => $llaveroUid ? pSQL($llaveroUid) : null,
+            'date_upd' => date('Y-m-d H:i:s'),
+        ], 'id_locker = ' . (int) $idLocker);
+
+        if ($result) {
+            if ($llaveroUid) {
+                $this->confirmations[] = sprintf($this->l('Llavero %s pre-cargado en taquilla'), $llaveroUid);
+            } else {
+                $this->confirmations[] = $this->l('Llavero retirado de taquilla');
             }
         } else {
             $this->errors[] = $this->l('Error al guardar el llavero');

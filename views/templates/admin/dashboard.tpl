@@ -137,6 +137,27 @@
                             <p style="color: #2ecc71; font-size: 12px; margin-bottom: 10px;">
                                 <i class="icon-check"></i> Lista para asignar
                             </p>
+                            
+                            {* Pre-cargar llavero en taquilla vacía *}
+                            <form method="post" action="{$current_url}" style="margin: 10px 0;">
+                                <input type="hidden" name="id_locker" value="{$locker.id_locker}">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-addon"><i class="icon-tag"></i></span>
+                                    <input type="text" name="llavero_uid" class="form-control" 
+                                           placeholder="UID Llavero" 
+                                           value="{$locker.llavero_uid|escape:'html'}"
+                                           style="text-transform: uppercase; font-family: monospace;">
+                                    <span class="input-group-btn">
+                                        <button type="submit" name="saveLockerLlavero" class="btn btn-success">
+                                            <i class="icon-save"></i>
+                                        </button>
+                                    </span>
+                                </div>
+                                {if $locker.llavero_uid}
+                                <small style="color: #2ecc71;"><i class="icon-check"></i> Llavero pre-cargado</small>
+                                {/if}
+                            </form>
+                            
                             <a href="{$current_url}&generateOperatorPin=1&id_locker={$locker.id_locker}" 
                                class="btn btn-info btn-sm" style="margin-bottom: 5px;">
                                 <i class="icon-key"></i> PIN Operario

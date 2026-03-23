@@ -812,11 +812,15 @@ class RkPickup extends Module
         }
 
         // Save assignment
+        // Copy llavero_uid from locker if pre-loaded
+        $llaveroUid = !empty($locker['llavero_uid']) ? pSQL($locker['llavero_uid']) : null;
+        
         Db::getInstance()->insert('rkpickup_assignment', [
             'id_order' => (int) $order->id,
             'id_locker' => (int) $locker['id_locker'],
             'pin_code' => pSQL($passcodeResult['passcode']),
             'ttlock_passcode_id' => pSQL($passcodeResult['passcode_id']),
+            'llavero_uid' => $llaveroUid,
             'status' => 'ready',
             'valid_from' => date('Y-m-d H:i:s', $validFrom / 1000),
             'valid_until' => date('Y-m-d H:i:s', $validUntil / 1000),
@@ -824,9 +828,10 @@ class RkPickup extends Module
             'date_upd' => date('Y-m-d H:i:s'),
         ]);
 
-        // Mark locker as occupied
+        // Mark locker as occupied and clear pre-loaded llavero (now assigned to order)
         Db::getInstance()->update('rkpickup_locker', [
             'status' => 'occupied',
+            'llavero_uid' => null,
             'date_upd' => date('Y-m-d H:i:s'),
         ], 'id_locker = ' . (int) $locker['id_locker']);
 
