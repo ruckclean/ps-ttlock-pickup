@@ -794,16 +794,21 @@ class RkPickup extends Module
             return false;
         }
 
-        // Calculate validity period
+        // Calculate validity periods
+        // Internal validity (for warnings/grace period)
         $validityHours = (int) Configuration::get('RKPICKUP_PIN_VALIDITY_HOURS');
         $validFrom = time() * 1000; // TTLock uses milliseconds
-        $validUntil = ($validFrom + ($validityHours * 3600 * 1000));
+        $internalValidUntil = ($validFrom + ($validityHours * 3600 * 1000));
+        
+        // TTLock PIN validity - much longer (30 days) to keep PIN active while assigned
+        // PIN will be deleted from TTLock when order is picked up or reassigned
+        $ttlockValidUntil = ($validFrom + (30 * 24 * 3600 * 1000)); // 30 days
 
-        // Create passcode
+        // Create passcode with extended TTLock validity
         $passcodeResult = $api->createPasscode(
             $locker['lock_id'],
             $validFrom,
-            $validUntil
+            $ttlockValidUntil
         );
 
         if (!$passcodeResult['success']) {
@@ -823,7 +828,7 @@ class RkPickup extends Module
             'llavero_uid' => $llaveroUid,
             'status' => 'ready',
             'valid_from' => date('Y-m-d H:i:s', $validFrom / 1000),
-            'valid_until' => date('Y-m-d H:i:s', $validUntil / 1000),
+            'valid_until' => date('Y-m-d H:i:s', $internalValidUntil / 1000),
             'date_add' => date('Y-m-d H:i:s'),
             'date_upd' => date('Y-m-d H:i:s'),
         ]);
@@ -1037,16 +1042,17 @@ class RkPickup extends Module
             return false;
         }
 
-        // Calculate validity period
+        // Calculate validity periods
         $validityHours = (int) Configuration::get('RKPICKUP_PIN_VALIDITY_HOURS');
         $validFrom = time() * 1000;
-        $validUntil = ($validFrom + ($validityHours * 3600 * 1000));
+        $internalValidUntil = ($validFrom + ($validityHours * 3600 * 1000));
+        $ttlockValidUntil = ($validFrom + (30 * 24 * 3600 * 1000)); // 30 days for TTLock
 
-        // Create passcode
+        // Create passcode with extended TTLock validity
         $passcodeResult = $api->createPasscode(
             $locker['lock_id'],
             $validFrom,
-            $validUntil
+            $ttlockValidUntil
         );
 
         if (!$passcodeResult['success']) {
@@ -1054,14 +1060,14 @@ class RkPickup extends Module
             return false;
         }
 
-        // Update assignment
+        // Update assignment with internal validity for warnings
         Db::getInstance()->update('rkpickup_assignment', [
             'id_locker' => (int) $locker['id_locker'],
             'pin_code' => pSQL($passcodeResult['passcode']),
             'ttlock_passcode_id' => pSQL($passcodeResult['passcode_id']),
             'status' => 'ready',
             'valid_from' => date('Y-m-d H:i:s', $validFrom / 1000),
-            'valid_until' => date('Y-m-d H:i:s', $validUntil / 1000),
+            'valid_until' => date('Y-m-d H:i:s', $internalValidUntil / 1000),
             'date_upd' => date('Y-m-d H:i:s'),
         ], 'id_assignment = ' . (int) $waitingAssignment['id_assignment']);
 
