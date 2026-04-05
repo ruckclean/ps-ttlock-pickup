@@ -739,16 +739,13 @@ class RkPickup extends Module
             return;
         }
 
-        // No assignment yet - this is an offline payment (bank transfer)
-        $offlinePayments = ['ps_wirepayment', 'bankwire', 'cheque', 'ps_checkpayment'];
-        
-        if (in_array($order->module, $offlinePayments)) {
-            PrestaShopLogger::addLog(
-                'RkPickup: Pago offline confirmado, asignando taquilla',
-                1, null, 'Order', $order->id
-            );
-            $this->assignLockerToOrder($order, true); // true = update PS order status
-        }
+        // No assignment yet - assign locker regardless of payment method
+        // This covers: offline payments (bank transfer) AND online payments where actionValidateOrder failed
+        PrestaShopLogger::addLog(
+            'RkPickup: Pago confirmado sin asignación previa, asignando taquilla ahora',
+            1, null, 'Order', $order->id
+        );
+        $this->assignLockerToOrder($order, true); // true = update PS order status
     }
 
     /**
