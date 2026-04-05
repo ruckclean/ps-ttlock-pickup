@@ -687,6 +687,9 @@ class RkPickup extends Module
         // For online payments (Redsys, PayPal, etc.), assign locker but DON'T change order status yet
         // The payment module will set "Payment accepted" after this, then we change to "Ready for pickup"
         $this->assignLockerToOrder($order, false); // false = don't change PS order status
+
+        // Notify admins of new order
+        $this->sendAdminNewOrderNotification($order);
     }
 
     /**
@@ -745,6 +748,7 @@ class RkPickup extends Module
             'RkPickup: Pago confirmado sin asignación previa, asignando taquilla ahora',
             1, null, 'Order', $order->id
         );
+        $this->sendAdminNewOrderNotification($order);
         $this->assignLockerToOrder($order, true); // true = update PS order status
     }
 
@@ -1098,6 +1102,50 @@ class RkPickup extends Module
         );
 
         return true;
+    }
+
+    /**
+     * Send admin notification email when a new order arrives
+     */
+    protected function sendAdminNewOrderNotification($order)
+    {
+        $adminEmails = ['saul.cereto@gmail.com', 'jtalegon@livday.es'];
+        $customer = new Customer($order->id_customer);
+        $subject = '🛒 Nuevo pedido #' . $order->id . ' - RuckClean';
+        $body = '<html><body style="font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px;">'
+            . '<div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 15px; overflow: hidden;">'
+            . '<div style="background: linear-gradient(135deg, #00D4AA, #00B894); padding: 25px; text-align: center;">'
+            . '<h1 style="color: #1A1A1A; margin: 0;">🛒 Nuevo pedido recibido</h1></div>'
+            . '<div style="padding: 30px;">'
+            . '<table style="width:100%; border-collapse: collapse;">'
+            . '<tr><td style="padding:8px; color:#888;">Pedido</td><td style="padding:8px; font-weight:bold;">#' . (int)$order->id . ' (' . pSQL($order->reference) . ')</td></tr>'
+            . '<tr style="background:#f9f9f9"><td style="padding:8px; color:#888;">Cliente</td><td style="padding:8px;">' . pSQL($customer->firstname) . ' ' . pSQL($customer->lastname) . '</td></tr>'
+            . '<tr><td style="padding:8px; color:#888;">Email</td><td style="padding:8px;">' . pSQL($customer->email) . '</td></tr>'
+            . '<tr style="background:#f9f9f9"><td style="padding:8px; color:#888;">Total</td><td style="padding:8px; font-weight:bold; color:#00D4AA;">' . number_format((float)$order->total_paid, 2) . ' &euro;</td></tr>'
+            . '<tr><td style="padding:8px; color:#888;">Fecha</td><td style="padding:8px;">' . $order->date_add . '</td></tr>'
+            . '</table>'
+            . '<div style="margin-top:25px; text-align:center;">'
+            . '<a href="https://ruckclean.com/admin-ruckclean2026/index.php?controller=AdminOrders&id_order=' . (int)$order->id . '&vieworder" style="background:#00D4AA; color:#1A1A1A; padding:12px 25px; border-radius:8px; text-decoration:none; font-weight:bold;">Ver pedido en el panel</a>'
+            . '</div></div>'
+            . '<div style="background:#1A1A1A; padding:15px; text-align:center;"><p style="color:#00D4AA; margin:0; font-size:13px;">RuckClean - Las Rozas de Madrid</p></div>'
+            . '</div></body></html>';
+        foreach ($adminEmails as $email) {
+            $sock = @fsockopen('tls://smtp.buzondecorreo.com', 465, $errno, $errstr, 10);
+            if (!$sock) continue;
+            fgets($sock, 1024);
+            fputs($sock, "EHLO ruckclean.com\r\n"); while ($line = fgets($sock, 1024)) { if ($line[3] == ' ') break; }
+            fputs($sock, "AUTH LOGIN\r\n"); fgets($sock, 1024);
+            fputs($sock, base64_encode('info@ruckclean.com') . "\r\n"); fgets($sock, 1024);
+            fputs($sock, base64_encode('PutaAna2024') . "\r\n"); $auth = fgets($sock, 1024);
+            if (strpos($auth, '235') === false) { fclose($sock); continue; }
+            fputs($sock, "MAIL FROM:<info@ruckclean.com>\r\n"); fgets($sock, 1024);
+            fputs($sock, "RCPT TO:<$email>\r\n"); fgets($sock, 1024);
+            fputs($sock, "DATA\r\n"); fgets($sock, 1024);
+            fputs($sock, "From: RuckClean <info@ruckclean.com>\r\nTo: <$email>\r\nSubject: $subject\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=utf-8\r\n\r\n$body\r\n.\r\n");
+            fgets($sock, 1024);
+            fputs($sock, "QUIT\r\n");
+            fclose($sock);
+        }
     }
 
     /**
