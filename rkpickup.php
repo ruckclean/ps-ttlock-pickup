@@ -347,6 +347,7 @@ class RkPickup extends Module
             'status' => 'available',
             'date_upd' => date('Y-m-d H:i:s'),
         ], 'id_locker = ' . (int) $idLocker);
+        $this->checkAndNotifyLockersAvailable();
     }
 
     /**
@@ -371,6 +372,7 @@ class RkPickup extends Module
                 'status' => 'available',
                 'date_upd' => date('Y-m-d H:i:s'),
             ], 'id_locker = ' . (int) $assignment['id_locker']);
+            $this->checkAndNotifyLockersAvailable();
         }
     }
 
@@ -864,6 +866,9 @@ class RkPickup extends Module
             $locker['id_locker']
         );
 
+        // Check if all lockers are now full and notify
+        $this->checkAndNotifyLockersFull();
+
         return true;
     }
 
@@ -1107,6 +1112,74 @@ class RkPickup extends Module
     /**
      * Send admin notification email when a new order arrives
      */
+    /**
+     * Check if all lockers are full and send Telegram notification + record period
+     */
+    protected function checkAndNotifyLockersFull()
+    {
+        $prefix = _DB_PREFIX_;
+        $total = (int)Db::getInstance()->getValue("SELECT COUNT(*) FROM {$prefix}rkpickup_locker WHERE active=1");
+        $occupied = (int)Db::getInstance()->getValue("SELECT COUNT(*) FROM {$prefix}rkpickup_locker WHERE active=1 AND status IN ('assigned','occupied')");
+        if ($total > 0 && $occupied >= $total) {
+            // Check if we already have an open full period
+            $openPeriod = Db::getInstance()->getValue("SELECT id FROM {$prefix}rkpickup_full_periods WHERE ended_at IS NULL");
+            if (!$openPeriod) {
+                // Record start of full period
+                Db::getInstance()->execute("INSERT INTO {$prefix}rkpickup_full_periods (started_at, date_add) VALUES (NOW(), NOW())");
+                // Send Telegram notification
+                $this->sendTelegramLockersFull($total);
+            }
+        }
+    }
+
+    /**
+     * Check if lockers are no longer full and close the period
+     */
+    protected function checkAndNotifyLockersAvailable()
+    {
+        $prefix = _DB_PREFIX_;
+        $openPeriod = Db::getInstance()->getRow("SELECT * FROM {$prefix}rkpickup_full_periods WHERE ended_at IS NULL");
+        if ($openPeriod) {
+            $total = (int)Db::getInstance()->getValue("SELECT COUNT(*) FROM {$prefix}rkpickup_locker WHERE active=1");
+            $occupied = (int)Db::getInstance()->getValue("SELECT COUNT(*) FROM {$prefix}rkpickup_locker WHERE active=1 AND status IN ('assigned','occupied')");
+            if ($occupied < $total) {
+                // Close the full period
+                Db::getInstance()->execute("UPDATE {$prefix}rkpickup_full_periods SET ended_at=NOW() WHERE id={$openPeriod['id']}");
+                // Send Telegram notification
+                $startedAt = new DateTime($openPeriod['started_at']);
+                $now = new DateTime();
+                $diff = $now->getTimestamp() - $startedAt->getTimestamp();
+                $mins = floor($diff / 60);
+                $secs = $diff % 60;
+                $duration = $mins > 0 ? "{$mins}m {$secs}s" : "{$secs}s";
+                $this->sendTelegramLockersAvailable($duration, $total - $occupied);
+            }
+        }
+    }
+
+    /**
+     * Send Telegram message when all lockers are full
+     */
+    protected function sendTelegramLockersFull($total)
+    {
+        $token = '8309307127:AAHYDa5PGZLMVY24YWTJbNqybKeOQQAKvx0';
+        $chatId = '-1003999708020';
+        $msg = "🔴 *ESTAMOS COMPLETOS*\n\nLos {$total} boxes están ocupados en este momento.\nNuevos pedidos quedarán en lista de espera.";
+        @file_get_contents("https://api.telegram.org/bot{$token}/sendMessage?chat_id={$chatId}&text=" . urlencode($msg) . "&parse_mode=Markdown");
+    }
+
+    /**
+     * Send Telegram message when a locker becomes available again
+     */
+    protected function sendTelegramLockersAvailable($duration, $free)
+    {
+        $token = '8309307127:AAHYDa5PGZLMVY24YWTJbNqybKeOQQAKvx0';
+        $chatId = '-1003999708020';
+        $freeText = $free == 1 ? '1 box libre' : "{$free} boxes libres";
+        $msg = "✅ *BOX DISPONIBLE*\n\n{$freeText} ahora mismo.\nEstuvimos completos durante: *{$duration}*";
+        @file_get_contents("https://api.telegram.org/bot{$token}/sendMessage?chat_id={$chatId}&text=" . urlencode($msg) . "&parse_mode=Markdown");
+    }
+
     protected function sendAdminNewOrderNotification($order)
     {
         $adminEmails = ['saul.cereto@gmail.com', 'jtalegon@livday.es'];
@@ -1329,6 +1402,7 @@ class RkPickup extends Module
             'status' => 'available',
             'date_upd' => date('Y-m-d H:i:s'),
         ], 'id_locker = ' . (int) $assignment['id_locker']);
+        $this->checkAndNotifyLockersAvailable();
 
         // Send requeued email (not cancelled!)
         $this->sendExpiredRequeuedEmail($assignment);
